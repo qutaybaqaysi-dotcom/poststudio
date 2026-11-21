@@ -3,13 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Post Studio</title>
+<title></title>
 <style>
-body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: Helvetica, Arial, sans-serif; background: #fff; color: #111; }
-h1 { font-weight: 400; font-size: 2rem; letter-spacing: 0.02em; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+.w { position: absolute; top: -2em; font-family: Helvetica, Arial, sans-serif; color: #111; white-space: nowrap; will-change: transform; user-select: none; }
 </style>
 </head>
 <body>
-<h1>Post Studio</h1>
+<script>
+const words = ["small", "unfinished", "experimental", "without brand", "without identity", "changing", "falling", "fragments", "nothing", "beginning", "end", "blips"];
+for (let i = words.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [words[i], words[j]] = [words[j], words[i]]; }
+let i = 0;
+function drop() {
+if (i >= words.length) return;
+const el = document.createElement("div");
+el.className = "w";
+el.textContent = words[i++];
+el.style.fontSize = (14 + Math.random() * 22) + "px";
+document.body.appendChild(el);
+const x = Math.random() * Math.max(0, innerWidth - el.offsetWidth);
+const drift = (Math.random() - 0.5) * 120;
+const turn = (Math.random() - 0.5) * 30;
+const time = 9000 + Math.random() * 8000;
+el.style.left = x + "px";
+el.animate([
+{ transform: "translate(0, 0) rotate(0deg)" },
+{ transform: "translate(" + drift + "px, " + (innerHeight + 80) + "px) rotate(" + turn + "deg)" }
+], { duration: time, easing: "cubic-bezier(.4,0,.8,1)", fill: "forwards" }).onfinish = () => el.remove();
+setTimeout(drop, 1500 + Math.random() * 3500);
+}
+setTimeout(drop, 1200);
+</script>
 </body>
 </html>

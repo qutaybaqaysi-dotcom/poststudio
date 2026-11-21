@@ -43,6 +43,7 @@ var levels = [0.95, 0.5, 0.8, 0.38, 0.9, 0.62];
 var op = levels[(next - 1) % levels.length];
 el.style.fontSize = size + "px";
 el.style.opacity = op;
+el.style.transform = "translate(-9999px,-9999px)";
 var words = text.split(" ");
 for (var w = 0; w < words.length; w++) {
 var wd = document.createElement("span");
@@ -79,6 +80,7 @@ el.className = "l";
 el.textContent = span.textContent;
 el.style.fontSize = it.size + "px";
 el.style.opacity = it.op;
+el.style.transform = "translate3d(" + b.left + "px," + b.top + "px,0)";
 document.body.appendChild(el);
 span.style.visibility = "hidden";
 loose.push({

@@ -26,41 +26,25 @@ jobs:
           """
           REDACT = r"""
           () => {
-            const boxes = [];
             const sx = window.scrollX, sy = window.scrollY;
-            const box = (r) => { if (r.width >= 2 && r.height >= 2) { const ix = Math.min(r.width * 0.05, 14), iy = Math.min(r.height * 0.05, 14); boxes.push([r.left + sx + ix, r.top + sy + iy, r.width - 2 * ix, r.height - 2 * iy]); } };
-            const photos = [];
-            const photo = (r) => { if (r.width >= 40 && r.height >= 40 && r.bottom > 0 && r.top < 2400) photos.push([r.left + sx, r.top + sy, r.width, r.height]); };
-            const band = (r) => { if (r.width >= 2 && r.height >= 2) boxes.push([r.left + sx, r.top + sy + r.height * 0.33, r.width, r.height * 0.34]); };
-            document.querySelectorAll("img, video").forEach(e => photo(e.getBoundingClientRect()));
+            const R = (r) => [r.left + sx, r.top + sy, r.width, r.height];
+            const lines = [], photos = [], marks = [], blocks = [];
+            document.querySelectorAll("img, video").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); });
             document.querySelectorAll("body *").forEach(e => {
               const bg = getComputedStyle(e).backgroundImage;
-              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) photo(e.getBoundingClientRect());
+              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) { const r = e.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); }
             });
-            document.querySelectorAll("svg, canvas").forEach(e => band(e.getBoundingClientRect()));
-            document.querySelectorAll("iframe, object, embed").forEach(e => box(e.getBoundingClientRect()));
+            document.querySelectorAll("svg, canvas").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2) marks.push(R(r)); });
+            document.querySelectorAll("iframe, object, embed").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2) blocks.push(R(r)); });
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-            let n, lines = 0;
+            let n;
             while ((n = walk.nextNode())) {
               if (!n.textContent.trim()) continue;
               const rg = document.createRange();
               rg.selectNodeContents(n);
-              for (const r of rg.getClientRects()) {
-                if (r.width < 1 || r.height < 2) continue;
-                const top = r.height * 0.33, bottom = r.height * 0.33;
-                boxes.push([r.left + sx, r.top + sy + top, r.width, r.height - top - bottom]);
-                lines++;
-              }
+              for (const r of rg.getClientRects()) { if (r.width >= 1 && r.height >= 2) lines.push(R(r)); }
             }
-            const layer = document.createElement("div");
-            layer.style.cssText = "position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none";
-            for (const [x, y, w, h] of boxes) {
-              const d = document.createElement("div");
-              d.style.cssText = "position:absolute;background:#000;left:" + x + "px;top:" + y + "px;width:" + w + "px;height:" + h + "px";
-              layer.appendChild(d);
-            }
-            document.body.appendChild(layer);
-            return {lines: lines, photos: photos};
+            return {lines: lines, photos: photos, marks: marks, blocks: blocks};
           }
           """
           SITES = ["https://www.nytimes.com/", "https://apnews.com/", "https://www.reuters.com/", "https://www.bbc.com/news", "https://en.wikipedia.org/wiki/Main_Page"]
@@ -79,7 +63,7 @@ jobs:
                       pg.wait_for_timeout(2500)
                       pg.add_style_tag(content=HIDE)
                       res = pg.evaluate(REDACT)
-                      lines, photos = res["lines"], res["photos"]
+                      lines, photos = len(res["lines"]), res["photos"]
                   except Exception as e:
                       print(url, "failed:", e)
                       pg.close()
@@ -101,7 +85,7 @@ jobs:
           now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
           with open("frontpage/meta.json", "w") as f:
               json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M")}, f)
-          import numpy as np
+          import numpy as np, random
           from scipy import ndimage
           from PIL import ImageDraw
           from rembg import remove, new_session
@@ -109,6 +93,48 @@ jobs:
           draw = ImageDraw.Draw(im)
           session = new_session("u2net_human_seg")
           people = 0
+          K = (0, 0, 0)
+          def stroke(x, y, w, h, thick):
+              # a hand drawn marker bar through the middle of a line
+              x0 = x + random.uniform(-4, 5)
+              x1 = x + w + random.uniform(-9, 7)
+              if random.random() < 0.12 and w > 60:
+                  x1 = x + w * random.uniform(0.6, 0.92)
+              if x1 - x0 < 4:
+                  return
+              cy = y + h * (0.57 + random.uniform(-0.04, 0.04))
+              t = max(2.0, h * thick * random.uniform(0.85, 1.2))
+              slope = max(-1.5, min(1.5, random.uniform(-0.006, 0.006) * (x1 - x0)))
+              steps = max(2, int((x1 - x0) / 22))
+              top, bot = [], []
+              for i in range(steps + 1):
+                  px = x0 + (x1 - x0) * i / steps
+                  c = cy + slope * i / steps
+                  top.append((px, c - t / 2 + random.uniform(-0.9, 0.9)))
+                  bot.append((px, c + t / 2 + random.uniform(-0.9, 0.9)))
+              top[0] = (top[0][0] + random.uniform(0, 3), top[0][1])
+              bot[-1] = (bot[-1][0] - random.uniform(0, 3), bot[-1][1])
+              draw.polygon(top + bot[::-1], fill=K)
+          def patch(x0, y0, x1, y1, clip=None):
+              # an uneven, slightly tilted hand made block
+              w, h = x1 - x0, y1 - y0
+              j = lambda a: random.uniform(-a, a)
+              jx, jy = 0.05 * w, 0.05 * h
+              pts = [(x0 + j(jx), y0 + j(jy)), (x1 + j(jx), y0 + j(jy)), (x1 + j(jx), y1 + j(jy)), (x0 + j(jx), y1 + j(jy))]
+              edge = []
+              for a, b in zip(pts, pts[1:] + pts[:1]):
+                  for i in range(6):
+                      t = i / 6
+                      edge.append((a[0] + (b[0] - a[0]) * t + j(2), a[1] + (b[1] - a[1]) * t + j(2)))
+              if clip:
+                  edge = [(min(max(px, clip[0]), clip[2]), min(max(py, clip[1]), clip[3])) for px, py in edge]
+              draw.polygon(edge, fill=K)
+          for x, y, w, h in res["lines"]:
+              stroke(x, y, w, h, 0.43)
+          for x, y, w, h in res["marks"]:
+              stroke(x, y, w, h, 0.36)
+          for x, y, w, h in res["blocks"]:
+              patch(x + 0.08 * w, y + 0.1 * h, x + 0.92 * w, y + 0.9 * h)
           for x, y, w, h in photos:
               x0, y0 = max(0, int(x)), max(0, int(y))
               x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
@@ -123,8 +149,7 @@ jobs:
                   hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
                   if hh * ww < 0.015 * mask.size:
                       continue
-                  pad = int(0.04 * max(hh, ww))
-                  draw.rectangle([x0 + max(0, sl[1].start - pad), y0 + max(0, sl[0].start - pad), x0 + min(x1 - x0, sl[1].stop + pad), y0 + min(y1 - y0, sl[0].stop + pad)], fill=(0, 0, 0))
+                  patch(x0 + sl[1].start + random.uniform(0, 0.08) * ww, y0 + sl[0].start - random.uniform(0, 0.04) * hh, x0 + sl[1].stop - random.uniform(0, 0.08) * ww, y0 + sl[0].start + hh * random.uniform(0.72, 0.95), clip=(x0, y0, x1, y1))
                   people += 1
           print("photos:", len(photos), "| people blocked:", people)
           im.convert("L").save("frontpage/front.jpg", quality=80, optimize=True)

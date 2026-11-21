@@ -19,6 +19,7 @@ var next = 0;
 var items = [];
 var loose = [];
 function r(a, b) { return a + Math.random() * (b - a); }
+function speed(it) { return it.vy * (1 - 0.75 * it.gone / it.letters.length); }
 
 function shuffle(list) {
 for (var i = list.length - 1; i > 0; i--) {
@@ -38,7 +39,8 @@ next++;
 var el = document.createElement("div");
 el.className = "h";
 var size = rank < 3 ? r(26, 32) : rank < 10 ? r(19, 24) : r(15, 19);
-var op = rank < 3 ? 0.95 : r(0.5, 0.85);
+var levels = [0.95, 0.5, 0.8, 0.38, 0.9, 0.62];
+var op = levels[(next - 1) % levels.length];
 el.style.fontSize = size + "px";
 el.style.opacity = op;
 var words = text.split(" ");
@@ -67,7 +69,7 @@ gone: 0
 };
 items.push(it);
 }
-setTimeout(spawnHeadline, r(2200, 4000));
+setTimeout(spawnHeadline, 300);
 }
 
 function detach(span, it) {
@@ -96,14 +98,14 @@ var third = innerHeight / 3;
 var order = items.slice().sort(function (a, b) { return b.y - a.y; });
 for (var o = 1; o < order.length; o++) {
 var ahead = order[o - 1], me = order[o];
-me.y += me.vy * dt;
+me.y += speed(me) * dt;
 if (ahead.gone < ahead.letters.length * 0.15) {
 var limit = ahead.y - me.h - 18;
 if (me.y > limit) me.y = limit;
 }
 me.moved = true;
 }
-if (order.length) { order[0].y += order[0].vy * dt; order[0].moved = true; }
+if (order.length) { order[0].y += speed(order[0]) * dt; order[0].moved = true; }
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
 it.moved = false;

@@ -5,13 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title></title>
 <style>
-html, body { margin: 0; height: 100%; background: #000; }
-body { display: flex; align-items: center; justify-content: center; }
-a { font-family: Helvetica, Arial, sans-serif; font-size: 16px; letter-spacing: 0.08em; color: #f2f2f2; text-decoration: none; opacity: 0.75; transition: opacity 0.6s; }
-a:hover { opacity: 1; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+a.word { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-size: 15px; letter-spacing: 0.06em; color: #8a8a8a; text-decoration: none; filter: blur(1.1px); text-shadow: 3px 2px 1px rgba(255, 255, 255, 0.18), -2px -1px 2px rgba(255, 255, 255, 0.1); transition: filter 0.9s, color 0.9s, text-shadow 0.9s; will-change: transform; }
+a.word:hover { filter: blur(0); color: #fff; text-shadow: none; }
 </style>
 </head>
 <body>
-<a href="rain/">enter</a>
+<a class="word" href="rain/">rain</a>
+<script>
+var el = document.querySelector(".word");
+var x = innerWidth / 2 - 20, y = innerHeight / 2 - 10;
+var angle = Math.random() * 6.28;
+var speed = 9;
+var paused = false;
+el.addEventListener("mouseenter", function () { paused = true; });
+el.addEventListener("mouseleave", function () { paused = false; });
+var last = performance.now();
+function frame(now) {
+var dt = Math.min(0.05, (now - last) / 1000);
+last = now;
+if (!paused) {
+angle += (Math.random() - 0.5) * 0.6 * dt;
+x += Math.cos(angle) * speed * dt;
+y += Math.sin(angle) * speed * dt;
+var m = 60;
+var w = el.offsetWidth, h = el.offsetHeight;
+if (x < m) { x = m; angle = Math.PI - angle; }
+if (x > innerWidth - w - m) { x = innerWidth - w - m; angle = Math.PI - angle; }
+if (y < m) { y = m; angle = -angle; }
+if (y > innerHeight - h - m) { y = innerHeight - h - m; angle = -angle; }
+}
+el.style.transform = "translate(" + x + "px," + y + "px)";
+requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
 </body>
 </html>

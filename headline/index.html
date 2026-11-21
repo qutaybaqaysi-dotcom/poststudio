@@ -42,7 +42,8 @@ var next = 0;
 var items = [];
 var loose = [];
 function r(a, b) { return a + Math.random() * (b - a); }
-function speed(it) { return it.vy * (1 - 0.75 * it.gone / it.letters.length); }
+function speed(it) { return it.vy * (1 - 0.75 * it.count / it.letters.length); }
+function surfaceAt(x0, x1) { return innerHeight - spanTop(Math.floor(x0 / COL), Math.floor(x1 / COL)); }
 
 function shuffle(list) {
 for (var i = list.length - 1; i > 0; i--) {
@@ -89,7 +90,8 @@ y: -el.offsetHeight - 10,
 h: el.offsetHeight,
 vy: (innerHeight / 3) / r(7, 11),
 letters: shuffle(Array.prototype.slice.call(el.querySelectorAll(".c"))),
-gone: 0
+gone: 0,
+count: 0
 };
 items.push(it);
 }
@@ -106,6 +108,8 @@ el.style.color = gray(it.op);
 el.style.transform = "translate3d(" + b.left + "px," + b.top + "px,0)";
 document.body.appendChild(el);
 span.style.visibility = "hidden";
+span.__d = true;
+it.count++;
 loose.push({
 el: el, op: it.op, size: it.size, ch: span.textContent,
 w: b.width, h: b.height,
@@ -154,11 +158,11 @@ function land(p) {
 var n = Math.max(1, Math.round(p.w / COL));
 var c0 = settle(p);
 var top = spanTop(c0, c0 + n - 1);
-p.x = c0 * COL;
-p.y = innerHeight - top - p.h;
-draw(p);
 var rise = top + p.h * 0.35;
 for (var c = c0; c < c0 + n && c < heights.length; c++) if (heights[c] < rise) heights[c] = rise;
+var tx = c0 * COL, ty = innerHeight - top - p.h;
+var dist = Math.sqrt((tx - p.x) * (tx - p.x) + (ty - p.y) * (ty - p.y));
+p.landing = { fx: p.x, fy0: p.y, tx: tx, ty: ty, t: 0, dur: 0.35 + dist / 70, vrot: p.vrot * 0.4 };
 }
 
 var last = performance.now();
@@ -166,6 +170,7 @@ function frame(now) {
 var dt = Math.min(0.05, (now - last) / 1000);
 last = now;
 var third = innerHeight / 3;
+var pileMax = spanTop(0, heights.length - 1);
 var order = items.slice().sort(function (a, b) { return b.y - a.y; });
 for (var o = 1; o < order.length; o++) {
 var ahead = order[o - 1], me = order[o];
@@ -182,15 +187,36 @@ var it = items[i];
 it.moved = false;
 var progress = Math.min(1, Math.max(0, it.y / (innerHeight * 0.65)));
 var target = Math.round(Math.pow(progress, 2.6) * it.letters.length);
-while (it.gone < target) { detach(it.letters[it.gone], it); it.gone++; }
+while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }
+if (it.y + it.h > innerHeight - pileMax) {
+for (var q = it.gone; q < it.letters.length; q++) {
+var sp = it.letters[q];
+if (sp.__d) continue;
+var rb = sp.getBoundingClientRect();
+if (rb.bottom >= surfaceAt(rb.left, rb.right)) detach(sp, it);
+}
+}
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";
-if (it.gone >= it.letters.length) {
+if (it.count >= it.letters.length) {
 it.el.remove();
 items.splice(i, 1);
 }
 }
 for (var k = loose.length - 1; k >= 0; k--) {
 var p = loose[k];
+if (p.landing) {
+var L = p.landing;
+L.t += dt;
+var e = Math.min(1, L.t / L.dur);
+var ease = 1 - Math.pow(1 - e, 3);
+p.x = L.fx + (L.tx - L.fx) * ease;
+p.y = L.fy0 + (L.ty - L.fy0) * ease;
+p.rot += L.vrot * (1 - e) * dt;
+p.fy += p.vfy * 0.3 * (1 - e) * dt;
+p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
+if (e >= 1) { draw(p); p.el.remove(); loose.splice(k, 1); }
+continue;
+}
 p.vx += p.ax * dt;
 p.vy += p.ay * dt;
 p.x += p.vx * dt;
@@ -204,8 +230,8 @@ var top = 0;
 for (var c = c0; c <= c1; c++) if (heights[c] > top) top = heights[c];
 var surface = innerHeight - top;
 if (p.y + p.h >= surface) {
-if (p.y + p.h - surface <= p.h) land(p);
-else draw(p);
+if (p.y + p.h - surface <= p.h) { land(p); continue; }
+draw(p);
 p.el.remove();
 loose.splice(k, 1);
 continue;

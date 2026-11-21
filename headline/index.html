@@ -94,8 +94,8 @@ var third = innerHeight / 3;
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
 it.y += it.vy * dt;
-var progress = Math.min(1, Math.max(0, (it.y + it.h) / (third + it.h)));
-var target = Math.round(Math.pow(progress, 2.2) * it.letters.length);
+var progress = Math.min(1, Math.max(0, it.y / (innerHeight * 0.42)));
+var target = Math.round(Math.pow(progress, 3.2) * it.letters.length);
 while (it.gone < target) { detach(it.letters[it.gone], it); it.gone++; }
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";
 if (it.gone >= it.letters.length) {

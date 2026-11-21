@@ -46,7 +46,8 @@ function spawn() {
     vy: r(0.035, 0.075), vz: r(-0.025, 0.025),
     sway: r(0.01, 0.035), phase: r(0, 6.28), freq: r(0.15, 0.4),
     rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: 0,
-    lastBlur: -1, lift: Math.random() < 0.25 ? r(0.08, 0.2) : r(-0.04, 0.04),
+    lastBlur: -1, lv: [1,2,3,3,4,4,5,5,6,6,7,7,8,8][Math.floor(Math.random() * 14)] / 10, fr: Math.random(),
+    bl: Math.random() < 0.15 + 0.4 * z ? r(0.6, 2.2) : 0,
     breakAt: (word === "enter" || word === "exit") ? 9 : Math.random() < 0.9 ? (r(0.38, 0.62) + r(0.38, 0.62)) / 2 : 9, broken: 0, nextBreak: 0, order: null
   };
   var U0 = Math.min(innerWidth, innerHeight), s0 = 1 / (1 + z * DEPTH);
@@ -83,8 +84,9 @@ function frame(now) {
     var sx = cx + X * W * s, sy = cy + d.Y * U * s;
     if (sy - d.h * s > H + 20) { d.el.remove(); drops.splice(i, 1); continue; }
     var near = 1 - d.z;
-    var blur = Math.round(d.z * d.z * 30 / s) / 10;
-    var lum = Math.min(0.8, Math.max(0.08, 0.1 + 0.7 * Math.pow(near, 1.4) + d.lift));
+    var blur = Math.round(d.bl / s * 10) / 10;
+    var lum = d.lv;
+    if (d.z < 0.25) { var tf = 1 - d.z / 0.25; lum = lum * (1 - tf) + (0.4 + 0.1 * d.fr) * tf; }
     var b = Math.round(255 * lum); d.lum = lum; d.s = s; d.blur = blur;
     d.el.style.color = "rgb(" + b + "," + b + "," + b + ")";
     if (blur !== d.lastBlur) { d.el.style.filter = blur > 0 ? "blur(" + blur + "px)" : "none"; d.lastBlur = blur; }

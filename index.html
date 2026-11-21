@@ -12,7 +12,7 @@ body { perspective: 800px; }
 </head>
 <body>
 <script>
-var plain = ["blips", "fall", "change", "begin", "end", "start", "start again", "here", "now", "there", "gone", "dust", "tickle", "no"];
+var plain = ["blips", "fall", "change", "begin", "end", "start", "here", "now", "there", "gone", "dust", "tickle", "no"];
 var peel = [["nothing", "end"], ["falling", "end"], ["starting", "end"], ["nowhere", "end"], ["know", "start"]];
 var loaded = ["experimental", "changing", "fragments", "unfinished"];
 var parts = [];
@@ -32,7 +32,7 @@ el.style.opacity = opacity;
 document.body.appendChild(el);
 var p = {
 el: el, size: size, op: opacity, fade: 0,
-x: 0, y: 0, vy: r(30, 350), vx: r(-15, 15),
+x: 0, y: 0, vy: r(25, 170), vx: r(-15, 15),
 sway: r(0, 40), swayRate: r(0.3, 1.2), phase: r(0, 6.28),
 rot: 0, vrot: r(-60, 60),
 fy: 0, vfy: Math.random() < 0.5 ? r(-120, 120) : 0,
@@ -55,7 +55,7 @@ p = make(w[0], r(18, 64), r(0.2, 0.9));
 if (Math.random() < 0.7) { p.mode = "peel"; p.from = w[1]; p.breakAt = r(0.6, 4); }
 } else {
 p = make(pick(loaded), r(16, 44), r(0.15, 0.7));
-p.vy = r(30, 140);
+p.vy = r(25, 110);
 if (Math.random() < 0.85) { p.mode = "dust"; p.breakAt = r(0.8, 4); }
 }
 p.x = r(-0.05, 1) * innerWidth;

@@ -7,31 +7,27 @@
 <style>
 html, body { margin: 0; background: #000; }
 header { max-width: 1440px; margin: 0 auto; padding: 44px 24px 30px; box-sizing: border-box;
-  font-family: Helvetica, Arial, sans-serif; color: #8c8c8c; font-size: 14px; line-height: 1.5; }
-header .t { color: #c8c8c8; font-size: 15px; letter-spacing: 0.04em; margin-bottom: 14px; }
+  font-family: Helvetica, Arial, sans-serif; color: #8c8c8c; font-size: 14px; line-height: 1.6; }
 header a { color: #8c8c8c; text-decoration: none; border-bottom: 1px solid #444; }
 header a:hover { color: #c8c8c8; }
-header p { margin: 10px 0 0; max-width: 640px; }
 img { display: block; width: 100%; max-width: 1440px; margin: 0 auto; }
 </style>
 </head>
 <body>
 <header>
-<div class="t">front page</div>
-<div id="src"></div>
-<p id="cap"></p>
+<div id="name"></div>
+<div><a id="link" target="_blank" rel="noopener"></a></div>
+<div id="when"></div>
+<div>Screen capture and redacted web project.</div>
 </header>
 <img alt="" src="front.jpg">
 <script>
 document.querySelector("img").src = "front.jpg?" + Date.now();
 fetch("meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
-  var src = document.getElementById("src");
-  src.textContent = m.name + ", captured " + m.date + ". Original: ";
-  var a = document.createElement("a");
+  document.getElementById("name").textContent = m.name;
+  var a = document.getElementById("link");
   a.href = m.url; a.textContent = m.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
-  a.target = "_blank"; a.rel = "noopener";
-  src.appendChild(a);
-  document.getElementById("cap").textContent = "The front page of " + m.name + " as it stood that day, redacted. Every photograph and the middle of every line of text are covered in black. What remains is the structure of the news: its columns, its rules, the weight of its headlines, and none of what they say.";
+  document.getElementById("when").textContent = m.date + (m.time ? ", " + m.time : "");
 }).catch(function () {});
 </script>
 </body>

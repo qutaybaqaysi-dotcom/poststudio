@@ -6,33 +6,36 @@
 <title></title>
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
-.w { position: absolute; top: -2em; font-family: Helvetica, Arial, sans-serif; color: #111; white-space: nowrap; will-change: transform; user-select: none; }
+body { perspective: 800px; }
+.w { position: absolute; top: -3em; font-family: Helvetica, Arial, sans-serif; color: #111; white-space: nowrap; will-change: transform; user-select: none; mix-blend-mode: multiply; }
 </style>
 </head>
 <body>
 <script>
-const words = ["small", "unfinished", "experimental", "without brand", "without identity", "changing", "falling", "fragments", "nothing", "beginning", "end", "blips"];
-for (let i = words.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [words[i], words[j]] = [words[j], words[i]]; }
-let i = 0;
+const words = ["small", "unfinished", "experimental", "changing", "falling", "fragments", "nothing", "beginning", "end", "blips"];
+const r = (a, b) => a + Math.random() * (b - a);
 function drop() {
-if (i >= words.length) return;
 const el = document.createElement("div");
 el.className = "w";
-el.textContent = words[i++];
-el.style.fontSize = (14 + Math.random() * 22) + "px";
+el.textContent = words[Math.floor(Math.random() * words.length)];
+el.style.fontSize = r(10, 56) + "px";
+el.style.opacity = r(0.12, 0.9).toFixed(2);
 document.body.appendChild(el);
-const x = Math.random() * Math.max(0, innerWidth - el.offsetWidth);
-const drift = (Math.random() - 0.5) * 120;
-const turn = (Math.random() - 0.5) * 30;
-const time = 9000 + Math.random() * 8000;
-el.style.left = x + "px";
+el.style.left = r(-0.05, 1) * innerWidth + "px";
+const fall = innerHeight + 160;
+const sway = r(-80, 80);
+const spin = r(-360, 360);
+const flipY = Math.random() < 0.5 ? r(-540, 540) : 0;
+const flipX = Math.random() < 0.3 ? r(-360, 360) : 0;
+const time = r(2500, 22000);
 el.animate([
-{ transform: "translate(0, 0) rotate(0deg)" },
-{ transform: "translate(" + drift + "px, " + (innerHeight + 80) + "px) rotate(" + turn + "deg)" }
-], { duration: time, easing: "cubic-bezier(.4,0,.8,1)", fill: "forwards" }).onfinish = () => el.remove();
-setTimeout(drop, 1500 + Math.random() * 3500);
+{ transform: "translate3d(0, 0, 0) rotate(0deg) rotateY(0deg) rotateX(0deg)" },
+{ transform: "translate3d(" + sway + "px, " + fall * 0.5 + "px, 0) rotate(" + spin * 0.5 + "deg) rotateY(" + flipY * 0.5 + "deg) rotateX(" + flipX * 0.5 + "deg)" },
+{ transform: "translate3d(" + (-sway * 0.5) + "px, " + fall + "px, 0) rotate(" + spin + "deg) rotateY(" + flipY + "deg) rotateX(" + flipX + "deg)" }
+], { duration: time, easing: "linear", fill: "forwards" }).onfinish = () => el.remove();
+setTimeout(drop, r(120, 650));
 }
-setTimeout(drop, 1200);
+drop();
 </script>
 </body>
 </html>

@@ -19,6 +19,8 @@ var parts = [];
 function r(a, b) { return a + Math.random() * (b - a); }
 function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
 
+function depthScale(z) { return 0.2 + Math.pow(z, 1.2); }
+
 function make(text, size, opacity) {
 var el = document.createElement("div");
 el.className = "w";
@@ -37,7 +39,8 @@ sway: r(0, 40), swayRate: r(0.3, 1.2), phase: r(0, 6.28),
 rot: 0, vrot: r(-60, 60),
 fy: 0, vfy: Math.random() < 0.5 ? r(-120, 120) : 0,
 fx: 0, vfx: Math.random() < 0.3 ? r(-90, 90) : 0,
-mode: null, from: "end", breakAt: 0, t: 0
+mode: null, from: "end", breakAt: 0, t: 0,
+z: r(0, 1), vz: r(-0.025, 0.025), zMax: 1
 };
 parts.push(p);
 return p;
@@ -48,18 +51,21 @@ if (parts.length < 500) {
 var g = Math.random();
 var p;
 if (g < 0.6) {
-p = make(pick(plain), r(10, 48), r(0.15, 0.9));
+p = make(pick(plain), r(38, 52), r(0.3, 0.95));
 } else if (g < 0.88) {
 var w = pick(peel);
-p = make(w[0], r(18, 64), r(0.2, 0.9));
+p = make(w[0], r(40, 56), r(0.35, 0.95));
 if (Math.random() < 0.7) { p.mode = "peel"; p.from = w[1]; p.breakAt = r(0.6, 4); }
 } else {
-p = make(pick(loaded), r(16, 44), r(0.15, 0.7));
+var lw = pick(loaded);
+p = make(lw, r(38, 50), r(0.3, 0.85));
+p.zMax = lw === "experimental" ? 0.5 : 0.75;
+p.z = r(0.05, p.zMax);
 p.vy = r(25, 110);
 if (Math.random() < 0.85) { p.mode = "dust"; p.breakAt = r(0.8, 4); }
 }
 p.x = r(-0.05, 1) * innerWidth;
-p.y = -p.el.offsetHeight - 10;
+p.y = -p.el.offsetHeight * 1.5 - 10;
 }
 setTimeout(spawn, r(150, 600));
 }
@@ -81,6 +87,9 @@ q.fx = from.fx;
 q.vfx = r(-20, 20);
 q.sway = 0;
 q.free = true;
+q.z = from.z;
+q.zMax = from.zMax;
+q.vz = r(-0.02, 0.02);
 return q;
 }
 
@@ -109,15 +118,19 @@ last = now;
 for (var i = parts.length - 1; i >= 0; i--) {
 var p = parts[i];
 p.t += dt;
-p.y += p.vy * dt;
+p.z += p.vz * dt;
+if (p.z < 0) { p.z = 0; p.vz = Math.abs(p.vz); }
+if (p.z > p.zMax) { p.z = p.zMax; p.vz = -Math.abs(p.vz); }
+var depth = p.free ? 1 : 0.35 + 0.9 * p.z;
+p.y += p.vy * depth * dt;
 p.x += p.vx * dt;
 p.rot += p.vrot * dt;
 p.fy += p.vfy * dt;
 p.fx += p.vfx * dt;
-if (p.fade) { p.op -= p.fade * dt; p.el.style.opacity = Math.max(0, p.op); }
+p.el.style.opacity = Math.max(0, p.op * (0.3 + 0.7 * p.z));
 if (p.mode && p.t >= p.breakAt) breakWord(p);
 var sx = Math.sin(p.t * p.swayRate + p.phase) * p.sway;
-p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
+p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) scale(" + depthScale(p.z) + ") rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
 var out = p.free ? (p.x < -150 || p.x > innerWidth + 150 || p.y < -150 || p.y > innerHeight + 150) : p.y > innerHeight + 120;
 if (p.dead || out || p.op <= 0) {
 p.el.remove();

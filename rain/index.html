@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body { perspective: 800px; }
+.w { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; mix-blend-mode: screen; transform-origin: 50% 50%; }
+html:fullscreen, html:fullscreen body { cursor: none; }
+</style>
+</head>
+<body>
+<script>
+var plain = ["blips", "fall", "change", "begin", "end", "start", "here", "now", "there", "gone", "dust", "tickle", "no"];
+var peel = [["nothing", "end"], ["falling", "end"], ["starting", "end"], ["nowhere", "end"], ["know", "start"]];
+var loaded = ["experimental", "changing", "fragments", "unfinished"];
+var parts = [];
+function r(a, b) { return a + Math.random() * (b - a); }
+function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+function depthScale(z) { return 0.2 + Math.pow(z, 1.2); }
+
+function make(text, size, opacity) {
+var el = document.createElement("div");
+el.className = "w";
+for (var i = 0; i < text.length; i++) {
+var s = document.createElement("span");
+s.textContent = text[i];
+el.appendChild(s);
+}
+el.style.fontSize = size + "px";
+el.style.opacity = opacity;
+document.body.appendChild(el);
+var p = {
+el: el, size: size, op: opacity, fade: 0,
+x: 0, y: 0, vy: r(25, 170), vx: r(-15, 15),
+sway: r(0, 40), swayRate: r(0.3, 1.2), phase: r(0, 6.28),
+rot: 0, vrot: r(-60, 60),
+fy: 0, vfy: Math.random() < 0.5 ? r(-120, 120) : 0,
+fx: 0, vfx: Math.random() < 0.3 ? r(-90, 90) : 0,
+mode: null, from: "end", breakAt: 0, t: 0,
+z: r(0, 1), vz: r(-0.025, 0.025), zMax: 1
+};
+parts.push(p);
+return p;
+}
+
+function spawn() {
+if (parts.length < 500) {
+var g = Math.random();
+var p;
+if (g < 0.6) {
+p = make(pick(plain), r(38, 52), r(0.3, 0.95));
+} else if (g < 0.88) {
+var w = pick(peel);
+p = make(w[0], r(40, 56), r(0.35, 0.95));
+if (Math.random() < 0.7) { p.mode = "peel"; p.from = w[1]; p.breakAt = r(0.6, 4); }
+} else {
+var lw = pick(loaded);
+p = make(lw, r(38, 50), r(0.3, 0.85));
+p.zMax = lw === "experimental" ? 0.5 : 0.75;
+p.z = r(0.05, p.zMax);
+p.vy = r(25, 110);
+if (Math.random() < 0.85) { p.mode = "dust"; p.breakAt = r(0.8, 4); }
+}
+p.x = r(-0.05, 1) * innerWidth;
+p.y = -p.el.offsetHeight * 1.5 - 10;
+}
+setTimeout(spawn, r(150, 600));
+}
+
+function loose(span, from) {
+var b = span.getBoundingClientRect();
+var q = make(span.textContent, from.size, from.op);
+q.x = b.left + b.width / 2 - q.el.offsetWidth / 2;
+q.y = b.top + b.height / 2 - q.el.offsetHeight / 2;
+var angle = r(0, 6.28);
+var speed = r(12, 60);
+q.vx = Math.cos(angle) * speed;
+q.vy = Math.sin(angle) * speed;
+q.rot = from.rot;
+q.vrot = r(-30, 30);
+q.fy = from.fy;
+q.vfy = r(-40, 40);
+q.fx = from.fx;
+q.vfx = r(-20, 20);
+q.sway = 0;
+q.free = true;
+q.z = from.z;
+q.zMax = from.zMax;
+q.vz = r(-0.02, 0.02);
+return q;
+}
+
+function breakWord(p) {
+var spans = p.el.children;
+if (p.mode === "peel") {
+if (spans.length <= 1) { p.mode = null; return; }
+var s = p.from === "end" ? spans[spans.length - 1] : spans[0];
+loose(s, p);
+s.remove();
+if (Math.random() < 0.25) { p.mode = null; } else { p.breakAt = p.t + r(0.3, 1.2); }
+} else if (p.mode === "dust") {
+var left = [];
+for (var i = 0; i < spans.length; i++) { if (spans[i].style.visibility !== "hidden") left.push(spans[i]); }
+var s2 = pick(left);
+loose(s2, p);
+s2.style.visibility = "hidden";
+if (left.length <= 1) { p.dead = true; } else { p.breakAt = p.t + r(0.15, 0.9); }
+}
+}
+
+var last = performance.now();
+function frame(now) {
+var dt = Math.min(0.05, (now - last) / 1000);
+last = now;
+for (var i = parts.length - 1; i >= 0; i--) {
+var p = parts[i];
+p.t += dt;
+p.z += p.vz * dt;
+if (p.z < 0) { p.z = 0; p.vz = Math.abs(p.vz); }
+if (p.z > p.zMax) { p.z = p.zMax; p.vz = -Math.abs(p.vz); }
+var depth = p.free ? 1 : 0.35 + 0.9 * p.z;
+p.y += p.vy * depth * dt;
+p.x += p.vx * dt;
+p.rot += p.vrot * dt;
+p.fy += p.vfy * dt;
+p.fx += p.vfx * dt;
+p.el.style.opacity = Math.max(0, p.op * (0.3 + 0.7 * p.z));
+if (p.mode && p.t >= p.breakAt) breakWord(p);
+var sx = Math.sin(p.t * p.swayRate + p.phase) * p.sway;
+p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) scale(" + depthScale(p.z) + ") rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
+var out = p.free ? (p.x < -150 || p.x > innerWidth + 150 || p.y < -150 || p.y > innerHeight + 150) : p.y > innerHeight + 120;
+if (p.dead || out || p.op <= 0) {
+p.el.remove();
+parts.splice(i, 1);
+}
+}
+requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+spawn();
+
+document.addEventListener("click", function () {
+var d = document.documentElement;
+if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+if (d.requestFullscreen) d.requestFullscreen();
+else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+}
+});
+</script>
+</body>
+</html>

@@ -36,11 +36,11 @@ el.style.opacity = opacity;
 document.body.appendChild(el);
 var p = {
 el: el, size: size, op: opacity, fade: 0,
-x: 0, y: 0, vy: r(25, 170), vx: r(-15, 15),
-sway: r(0, 40), swayRate: r(0.3, 1.2), phase: r(0, 6.28),
-rot: 0, vrot: r(-60, 60),
-fy: 0, vfy: Math.random() < 0.5 ? r(-120, 120) : 0,
-fx: 0, vfx: Math.random() < 0.3 ? r(-90, 90) : 0,
+x: 0, y: 0, vy: r(18, 90), vx: r(-8, 8),
+sway: r(10, 45), swayRate: r(0.12, 0.45), phase: r(0, 6.28),
+rot: 0, vrot: r(-18, 18),
+fy: 0, vfy: Math.random() < 0.5 ? r(-35, 35) : 0,
+fx: 0, vfx: Math.random() < 0.3 ? r(-25, 25) : 0,
 mode: null, from: "end", breakAt: 0, t: 0,
 z: r(0, 1), vz: r(-0.025, 0.025), zMax: 1
 };
@@ -63,13 +63,13 @@ var lw = pick(loaded);
 p = make(lw, r(38, 50), r(0.3, 0.85));
 p.zMax = lw === "experimental" ? 0.5 : 0.75;
 p.z = r(0.05, p.zMax);
-p.vy = r(25, 110);
+p.vy = r(15, 60);
 if (Math.random() < 0.85) { p.mode = "dust"; p.breakAt = r(0.8, 4); }
 }
 p.x = r(-0.05, 1) * innerWidth;
 p.y = -p.el.offsetHeight * 1.5 - 10;
 }
-setTimeout(spawn, r(150, 600));
+setTimeout(spawn, r(350, 1100));
 }
 
 function loose(span, from) {
@@ -78,15 +78,15 @@ var q = make(span.textContent, from.size, from.op);
 q.x = b.left + b.width / 2 - q.el.offsetWidth / 2;
 q.y = b.top + b.height / 2 - q.el.offsetHeight / 2;
 var angle = r(0, 6.28);
-var speed = r(12, 60);
+var speed = r(8, 35);
 q.vx = Math.cos(angle) * speed;
 q.vy = Math.sin(angle) * speed;
 q.rot = from.rot;
-q.vrot = r(-30, 30);
+q.vrot = r(-15, 15);
 q.fy = from.fy;
-q.vfy = r(-40, 40);
+q.vfy = r(-20, 20);
 q.fx = from.fx;
-q.vfx = r(-20, 20);
+q.vfx = r(-12, 12);
 q.sway = 0;
 q.free = true;
 q.z = from.z;
@@ -98,10 +98,12 @@ return q;
 function breakWord(p) {
 var spans = p.el.children;
 if (p.mode === "peel") {
-if (spans.length <= 1) { p.mode = null; return; }
-var s = p.from === "end" ? spans[spans.length - 1] : spans[0];
+var vis = [];
+for (var k = 0; k < spans.length; k++) { if (spans[k].style.visibility !== "hidden") vis.push(spans[k]); }
+if (vis.length <= 1) { p.mode = null; return; }
+var s = p.from === "end" ? vis[vis.length - 1] : vis[0];
 loose(s, p);
-s.remove();
+s.style.visibility = "hidden";
 if (Math.random() < 0.25) { p.mode = null; } else { p.breakAt = p.t + r(0.3, 1.2); }
 } else if (p.mode === "dust") {
 var left = [];
@@ -152,7 +154,7 @@ if (!door && canFull) {
 var word = isFull() ? "exit" : "enter";
 var p = make(word, 46, 0.95);
 p.zMax = 0.85; p.z = r(0.45, 0.8); p.vz = 0;
-p.vy = r(28, 45); p.vrot = r(-12, 12); p.vfy = 0; p.vfx = 0;
+p.vy = r(20, 32); p.vrot = r(-8, 8); p.vfy = 0; p.vfx = 0;
 p.x = r(0.1, 0.8) * innerWidth;
 p.y = -p.el.offsetHeight * 1.5 - 10;
 p.el.classList.add("door");

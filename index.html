@@ -44,18 +44,19 @@ return p;
 }
 
 function spawn() {
-if (parts.length < 400) {
+if (parts.length < 500) {
 var g = Math.random();
 var p;
 if (g < 0.6) {
 p = make(pick(plain), r(10, 48), r(0.15, 0.9));
-} else if (g < 0.85) {
+} else if (g < 0.88) {
 var w = pick(peel);
 p = make(w[0], r(18, 64), r(0.2, 0.9));
 if (Math.random() < 0.7) { p.mode = "peel"; p.from = w[1]; p.breakAt = r(0.6, 4); }
 } else {
-p = make(pick(loaded), r(36, 96), r(0.15, 0.8));
-if (Math.random() < 0.8) { p.mode = "dust"; p.breakAt = r(0.8, 5); }
+p = make(pick(loaded), r(16, 44), r(0.15, 0.7));
+p.vy = r(30, 140);
+if (Math.random() < 0.85) { p.mode = "dust"; p.breakAt = r(0.8, 4); }
 }
 p.x = r(-0.05, 1) * innerWidth;
 p.y = -p.el.offsetHeight - 10;
@@ -63,17 +64,23 @@ p.y = -p.el.offsetHeight - 10;
 setTimeout(spawn, r(150, 600));
 }
 
-function loose(span, from, scatter) {
+function loose(span, from) {
 var b = span.getBoundingClientRect();
 var q = make(span.textContent, from.size, from.op);
 q.x = b.left + b.width / 2 - q.el.offsetWidth / 2;
 q.y = b.top + b.height / 2 - q.el.offsetHeight / 2;
-q.vy = from.vy * r(0.9, 1.7);
-q.vx = from.vx + r(-scatter, scatter);
+var angle = r(0, 6.28);
+var speed = r(12, 60);
+q.vx = Math.cos(angle) * speed;
+q.vy = Math.sin(angle) * speed;
 q.rot = from.rot;
-q.vrot = r(-240, 240);
-q.vfy = r(-300, 300);
-q.phase = 0;
+q.vrot = r(-30, 30);
+q.fy = from.fy;
+q.vfy = r(-40, 40);
+q.fx = from.fx;
+q.vfx = r(-20, 20);
+q.sway = 0;
+q.free = true;
 return q;
 }
 
@@ -82,15 +89,16 @@ var spans = p.el.children;
 if (p.mode === "peel") {
 if (spans.length <= 1) { p.mode = null; return; }
 var s = p.from === "end" ? spans[spans.length - 1] : spans[0];
-loose(s, p, 30);
+loose(s, p);
 s.remove();
 if (Math.random() < 0.25) { p.mode = null; } else { p.breakAt = p.t + r(0.3, 1.2); }
 } else if (p.mode === "dust") {
-for (var i = 0; i < spans.length; i++) {
-var q = loose(spans[i], p, 120);
-q.fade = r(0.05, 0.3);
-}
-p.dead = true;
+var left = [];
+for (var i = 0; i < spans.length; i++) { if (spans[i].style.visibility !== "hidden") left.push(spans[i]); }
+var s2 = pick(left);
+loose(s2, p);
+s2.style.visibility = "hidden";
+if (left.length <= 1) { p.dead = true; } else { p.breakAt = p.t + r(0.15, 0.9); }
 }
 }
 
@@ -110,7 +118,8 @@ if (p.fade) { p.op -= p.fade * dt; p.el.style.opacity = Math.max(0, p.op); }
 if (p.mode && p.t >= p.breakAt) breakWord(p);
 var sx = Math.sin(p.t * p.swayRate + p.phase) * p.sway;
 p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
-if (p.dead || p.y > innerHeight + 120 || p.op <= 0) {
+var out = p.free ? (p.x < -150 || p.x > innerWidth + 150 || p.y < -150 || p.y > innerHeight + 150) : p.y > innerHeight + 120;
+if (p.dead || out || p.op <= 0) {
 p.el.remove();
 parts.splice(i, 1);
 }

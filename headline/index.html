@@ -16,6 +16,7 @@ body { perspective: 800px; }
 .h .wd { display: inline-block; white-space: pre; }
 .l { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; transform-origin: 50% 50%; }
 canvas { position: absolute; left: 0; top: 0; }
+body.idle { cursor: none; }
 </style>
 </head>
 <body>
@@ -269,6 +270,22 @@ spawnHeadline();
 })
 .catch(function () {});
 requestAnimationFrame(frame);
+// hidden door: a click anywhere opens full screen
+(function(){
+  var de = document.documentElement;
+  var req = de.requestFullscreen || de.webkitRequestFullscreen;
+  if (!req) return;
+  document.addEventListener('click', function(){
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try { var p = req.call(de); if (p && p.catch) p.catch(function(){}); } catch(e){}
+  });
+  var t;
+  function wake(){ document.body.classList.remove('idle'); clearTimeout(t);
+    if (document.fullscreenElement || document.webkitFullscreenElement) t = setTimeout(function(){ document.body.classList.add('idle'); }, 2000); }
+  document.addEventListener('mousemove', wake);
+  document.addEventListener('fullscreenchange', wake);
+  document.addEventListener('webkitfullscreenchange', wake);
+})();
 </script>
 </body>
 </html>

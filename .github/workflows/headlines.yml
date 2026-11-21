@@ -1,0 +1,36 @@
+name: headlines
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch New York Times headlines
+        run: |
+          python3 - <<'PY'
+          import json, html, urllib.request, xml.etree.ElementTree as ET
+          url = "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
+          req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+          data = urllib.request.urlopen(req, timeout=30).read()
+          root = ET.fromstring(data)
+          titles = []
+          for item in root.iter("item"):
+              t = html.unescape(item.findtext("title") or "").strip()
+              if t and t not in titles:
+                  titles.append(t)
+          with open("headline/headlines.json", "w") as f:
+              json.dump({"headlines": titles[:40]}, f, ensure_ascii=False, indent=1)
+          print(len(titles), "headlines")
+          PY
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update headlines
+          file_pattern: headline/headlines.json

@@ -92,17 +92,19 @@ function frame(now) {
     var b = Math.round(255 * lum); d.lum = lum; d.s = s; d.blur = blur;
     d.el.style.color = "rgb(" + b + "," + b + "," + b + ")";
     if (blur !== d.lastBlur) { d.el.style.filter = blur > 0 ? "blur(" + blur + "px)" : "none"; d.lastBlur = blur; }
+    if (dt > 0) { if (d.psy != null) { d.svx = (sx - d.psx) / dt; d.svy = (sy - d.psy) / dt; } d.psx = sx; d.psy = sy; }
     if (sy > H * d.breakAt) {
       if (!d.order) { d.order = Array.prototype.slice.call(d.el.children); if (d.word !== "enter" && d.word !== "exit") { for (var k = d.order.length - 1; k > 0; k--) { var j = Math.floor(Math.random() * (k + 1)); var t = d.order[k]; d.order[k] = d.order[j]; d.order[j] = t; } } d.nextBreak = T; }
       while (d.broken < d.order.length && T >= d.nextBreak) {
         var sp = d.order[d.broken++];
-        var lx = sx + (sp.offsetLeft + sp.offsetWidth / 2 - d.w / 2) * s, ly = sy;
+        var off = (sp.offsetLeft + sp.offsetWidth / 2 - d.w / 2) * s, ra = d.rot * Math.PI / 180;
+        var lx = sx + off * Math.cos(ra), ly = sy + off * Math.sin(ra);
         var le = document.createElement("div");
         le.className = "w"; le.textContent = sp.textContent; le.style.fontSize = BASE + "px";
         le.style.color = d.el.style.color; le.style.filter = d.el.style.filter; le.style.zIndex = d.el.style.zIndex;
         document.body.appendChild(le);
         sp.style.visibility = "hidden";
-        bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: r(-9, 9) * s, vy: d.vy * U * s * r(0.85, 1.1), g: r(0.5, 2) * s, rot: d.rot, vrot: r(-12, 12), fy: d.fy, vfy: r(-20, 20), life: 0, span: r(9, 16), lum: d.lum });
+        bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: d.svx || 0, tvx: (d.svx || 0) + r(-9, 9) * s, vy: d.svy || d.vy * U * s, g: r(0.3, 1.2) * s, rot: d.rot, vrot: r(-12, 12), fy: d.fy, vfy: r(-20, 20), life: 0, span: r(9, 16), lum: d.lum });
         d.nextBreak = T + r(0.15, 0.55);
       }
       if (d.broken >= d.order.length) { d.el.remove(); drops.splice(i, 1); continue; }
@@ -114,7 +116,7 @@ function frame(now) {
   }
   for (var q = bits.length - 1; q >= 0; q--) {
     var p = bits[q];
-    p.life += dt; p.vy += p.g * dt; p.vx *= (1 - 0.15 * dt);
+    p.life += dt; p.vy += p.g * dt; p.vx += (p.tvx - p.vx) * Math.min(1, dt * 0.6);
     p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vrot * dt; p.fy += p.vfy * dt;
     var fade = Math.max(0, 1 - p.life / p.span);
     if (fade <= 0 || p.y > H + 40 || p.x < -60 || p.x > W + 60) { p.el.remove(); bits.splice(q, 1); continue; }

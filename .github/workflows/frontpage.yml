@@ -35,7 +35,7 @@ jobs:
               if (bg && bg !== "none" && bg.indexOf("url(") >= 0) { const r = e.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); }
             });
             document.querySelectorAll("svg, canvas").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2) marks.push(R(r)); });
-            document.querySelectorAll("iframe, object, embed").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2) blocks.push(R(r)); });
+            document.querySelectorAll("iframe, object, embed").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2 && r.width <= 1100 && r.height <= 700) blocks.push(R(r)); });
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let n;
             while ((n = walk.nextNode())) {
@@ -45,6 +45,28 @@ jobs:
               for (const r of rg.getClientRects()) { if (r.width >= 1 && r.height >= 2) lines.push(R(r)); }
             }
             return {lines: lines, photos: photos, marks: marks, blocks: blocks};
+          }
+          """
+          OVERLAYS = r"""
+          () => {
+            const vw = innerWidth, area = vw * 1200;
+            let n = 0;
+            document.querySelectorAll("body *").forEach(e => {
+              const cs = getComputedStyle(e);
+              if (cs.position === "fixed" || cs.position === "sticky") {
+                const r = e.getBoundingClientRect();
+                if (r.width * r.height > 0.3 * area) { e.style.setProperty("display", "none", "important"); n++; }
+              }
+            });
+            document.querySelectorAll("iframe").forEach(e => {
+              const r = e.getBoundingClientRect();
+              if (r.width > vw * 0.8 && r.height > 600) { e.style.setProperty("display", "none", "important"); n++; }
+            });
+            [document.documentElement, document.body].forEach(el => {
+              el.style.setProperty("overflow", "visible", "important");
+              el.style.setProperty("filter", "none", "important");
+            });
+            return n;
           }
           """
           SITES = ["https://www.nytimes.com/", "https://apnews.com/", "https://www.reuters.com/", "https://www.bbc.com/news", "https://en.wikipedia.org/wiki/Main_Page"]
@@ -62,6 +84,8 @@ jobs:
                       pg.evaluate("window.scrollTo(0, 0)")
                       pg.wait_for_timeout(2500)
                       pg.add_style_tag(content=HIDE)
+                      print("overlays removed:", pg.evaluate(OVERLAYS))
+                      pg.wait_for_timeout(800)
                       res = pg.evaluate(REDACT)
                       lines, photos = len(res["lines"]), res["photos"]
                   except Exception as e:

@@ -8,7 +8,8 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
 body { perspective: 800px; }
 .w { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; mix-blend-mode: screen; transform-origin: 50% 50%; }
-html:fullscreen, html:fullscreen body { cursor: none; }
+body.idle { cursor: none; }
+.door { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -134,6 +135,7 @@ var sx = Math.sin(p.t * p.swayRate + p.phase) * p.sway;
 p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) scale(" + depthScale(p.z) + ") rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
 var out = p.free ? (p.x < -150 || p.x > innerWidth + 150 || p.y < -150 || p.y > innerHeight + 150) : p.y > innerHeight + 120;
 if (p.dead || out || p.op <= 0) {
+if (p === door) door = null;
 p.el.remove();
 parts.splice(i, 1);
 }
@@ -142,14 +144,43 @@ requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 spawn();
-
-document.addEventListener("click", function () {
+var door = null;
+var canFull = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function spawnDoor() {
+if (!door && canFull) {
+var word = isFull() ? "exit" : "enter";
+var p = make(word, 46, 0.95);
+p.zMax = 0.85; p.z = r(0.45, 0.8); p.vz = 0;
+p.vy = r(28, 45); p.vrot = r(-12, 12); p.vfy = 0; p.vfx = 0;
+p.x = r(0.1, 0.8) * innerWidth;
+p.y = -p.el.offsetHeight * 1.5 - 10;
+p.el.classList.add("door");
+p.el.addEventListener("click", function () {
 var d = document.documentElement;
-if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-if (d.requestFullscreen) d.requestFullscreen();
-else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+if (word === "enter") {
+if (d.requestFullscreen) d.requestFullscreen(); else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+} else {
+if (document.exitFullscreen) document.exitFullscreen(); else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
 }
 });
+door = p;
+}
+setTimeout(spawnDoor, r(20000, 40000));
+}
+setTimeout(spawnDoor, r(6000, 12000));
+function doorChange() { if (door) door.dead = true; }
+document.addEventListener("fullscreenchange", doorChange);
+document.addEventListener("webkitfullscreenchange", doorChange);
+
+var idleTimer;
+function wake() {
+document.body.classList.remove("idle");
+clearTimeout(idleTimer);
+idleTimer = setTimeout(function () { if (isFull()) document.body.classList.add("idle"); }, 2500);
+}
+document.addEventListener("mousemove", wake);
+wake();
 </script>
 </body>
 </html>

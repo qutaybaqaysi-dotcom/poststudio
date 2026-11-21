@@ -59,23 +59,38 @@ jobs:
             return lines;
           }
           """
+          SITES = ["https://www.nytimes.com/", "https://apnews.com/", "https://www.reuters.com/", "https://www.bbc.com/news", "https://en.wikipedia.org/wiki/Main_Page"]
+          saved = None
           with sync_playwright() as p:
               b = p.chromium.launch()
-              pg = b.new_page(viewport={"width": 1440, "height": 2400},
-                              user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-              pg.goto("https://www.nytimes.com/", wait_until="domcontentloaded", timeout=60000)
-              pg.wait_for_timeout(6000)
-              pg.mouse.wheel(0, 2400)
-              pg.wait_for_timeout(2500)
-              pg.evaluate("window.scrollTo(0, 0)")
-              pg.wait_for_timeout(2500)
-              title = pg.title()
-              pg.add_style_tag(content=HIDE)
-              lines = pg.evaluate(REDACT)
-              print("title:", title, "| redacted lines:", lines)
-              pg.wait_for_timeout(300)
-              pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
+              for url in SITES:
+                  pg = b.new_page(viewport={"width": 1440, "height": 2400},
+                                  user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+                  try:
+                      pg.goto(url, wait_until="domcontentloaded", timeout=60000)
+                      pg.wait_for_timeout(6000)
+                      pg.mouse.wheel(0, 2400)
+                      pg.wait_for_timeout(2500)
+                      pg.evaluate("window.scrollTo(0, 0)")
+                      pg.wait_for_timeout(2500)
+                      pg.add_style_tag(content=HIDE)
+                      lines = pg.evaluate(REDACT)
+                  except Exception as e:
+                      print(url, "failed:", e)
+                      pg.close()
+                      continue
+                  print(url, "| title:", pg.title(), "| redacted lines:", lines)
+                  if lines >= 60:
+                      pg.wait_for_timeout(300)
+                      pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
+                      saved = url
+                      pg.close()
+                      break
+                  pg.close()
               b.close()
+          if not saved:
+              sys.exit("No site let the browser through; nothing was saved.")
+          print("saved from", saved)
           Image.open("/tmp/front.png").convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5

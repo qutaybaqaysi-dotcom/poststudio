@@ -26,6 +26,7 @@ var ctx = pile.getContext("2d");
 var dpr = window.devicePixelRatio || 1;
 var COL = 4;
 var heights = [];
+var vis = [];
 function setupPile() {
 pile.width = innerWidth * dpr;
 pile.height = innerHeight * dpr;
@@ -33,17 +34,24 @@ pile.style.width = innerWidth + "px";
 pile.style.height = innerHeight + "px";
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 heights = new Array(Math.ceil(innerWidth / COL) + 1).fill(0);
+vis = new Array(heights.length).fill(0);
 }
 setupPile();
 window.addEventListener("resize", setupPile);
 function gray(op) { var v = Math.round(242 * op); return "rgb(" + v + "," + v + "," + v + ")"; }
 var heads = [];
 var next = 0;
+var lastSpawn = -1e9;
 var items = [];
 var loose = [];
 function r(a, b) { return a + Math.random() * (b - a); }
 function speed(it) { return it.vy * (1 - 0.75 * it.count / it.letters.length); }
-function surfaceAt(x0, x1) { return innerHeight - spanTop(Math.floor(x0 / COL), Math.floor(x1 / COL)); }
+function visTop(x0, x1) {
+var t = 0;
+for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
+return t;
+}
+function surfaceAt(x0, x1) { return innerHeight - visTop(x0, x1); }
 
 function shuffle(list) {
 for (var i = list.length - 1; i > 0; i--) {
@@ -55,7 +63,9 @@ return list;
 
 function spawnHeadline() {
 var prev = items[items.length - 1];
-if (prev && prev.y < 22) { setTimeout(spawnHeadline, 400); return; }
+var nowT = performance.now();
+if ((prev && prev.y < 22) || nowT - lastSpawn < 2500 || loose.length > 500) { setTimeout(spawnHeadline, 400); return; }
+lastSpawn = nowT;
 if (heads.length) {
 var rank = next % heads.length;
 var text = heads[rank];
@@ -88,6 +98,7 @@ el: el, size: size, op: op,
 x: r(Math.min(20, maxX), maxX),
 y: -el.offsetHeight - 10,
 h: el.offsetHeight,
+w: el.offsetWidth,
 vy: (innerHeight / 3) / r(7, 11),
 letters: shuffle(Array.prototype.slice.call(el.querySelectorAll(".c"))),
 gone: 0,
@@ -159,7 +170,8 @@ var n = Math.max(1, Math.round(p.w / COL));
 var c0 = settle(p);
 var top = spanTop(c0, c0 + n - 1);
 var rise = top + p.h * 0.35;
-for (var c = c0; c < c0 + n && c < heights.length; c++) if (heights[c] < rise) heights[c] = rise;
+var seen = top + p.h * 0.85;
+for (var c = c0; c < c0 + n && c < heights.length; c++) { if (heights[c] < rise) heights[c] = rise; if (vis[c] < seen) vis[c] = seen; }
 var tx = c0 * COL, ty = innerHeight - top - p.h;
 var dist = Math.sqrt((tx - p.x) * (tx - p.x) + (ty - p.y) * (ty - p.y));
 p.landing = { fx: p.x, fy0: p.y, tx: tx, ty: ty, t: 0, dur: 0.35 + dist / 70, vrot: p.vrot * 0.4 };
@@ -170,7 +182,7 @@ function frame(now) {
 var dt = Math.min(0.05, (now - last) / 1000);
 last = now;
 var third = innerHeight / 3;
-var pileMax = spanTop(0, heights.length - 1);
+var pileMax = visTop(0, innerWidth);
 var order = items.slice().sort(function (a, b) { return b.y - a.y; });
 for (var o = 1; o < order.length; o++) {
 var ahead = order[o - 1], me = order[o];
@@ -185,8 +197,10 @@ if (order.length) { order[0].y += speed(order[0]) * dt; order[0].moved = true; }
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
 it.moved = false;
-var progress = Math.min(1, Math.max(0, it.y / (innerHeight * 0.65)));
-var target = Math.round(Math.pow(progress, 2.6) * it.letters.length);
+var surf = surfaceAt(it.x, it.x + it.w);
+var zs = surf * 0.5, ze = surf * 0.75;
+var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / Math.max(1, ze - zs)));
+var target = Math.round(Math.pow(progress, 1.6) * it.letters.length);
 while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }
 if (it.y + it.h > innerHeight - pileMax) {
 for (var q = it.gone; q < it.letters.length; q++) {

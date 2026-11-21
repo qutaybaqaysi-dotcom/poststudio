@@ -46,7 +46,7 @@ var lastSpawn = -1e9;
 var items = [];
 var loose = [];
 function r(a, b) { return a + Math.random() * (b - a); }
-function speed(it) { return it.vy * (1 - 0.75 * it.count / it.letters.length); }
+function speed(it) { return it.vy * (1 - 0.75 * it.gone / it.letters.length); }
 function visTop(x0, x1) {
 var t = 0;
 for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
@@ -203,9 +203,8 @@ if (order.length) { order[0].y += speed(order[0]) * dt; order[0].moved = true; }
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
 it.moved = false;
-var surf = surfaceAt(it.x, it.x + it.w);
-var zs = surf * 0.5, ze = surf * 0.75;
-var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / Math.max(1, ze - zs)));
+var zs = innerHeight * 0.5, ze = innerHeight * 0.75;
+var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / (ze - zs)));
 var target = Math.round(Math.pow(progress, 1.6) * it.letters.length);
 while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }
 if (it.y + it.h > innerHeight - pileMax) {

@@ -6,8 +6,6 @@
 <title></title>
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
-#fog { position: fixed; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(150,150,150,0.10), rgba(90,90,90,0.04) 55%, rgba(0,0,0,0) 80%); }
 .w { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 400;
   white-space: pre; user-select: none; pointer-events: none; will-change: transform, filter;
   transform: translate3d(-9999px,-9999px,0); transform-origin: 50% 50%; }
@@ -16,7 +14,6 @@ body.idle, body.idle .w.door { cursor: none; }
 </style>
 </head>
 <body>
-<div id="fog"></div>
 <script>
 var WORDS = ["enter","blips","rise","fall","trickle","stay","change","begin","end","start","here","there","now","nowhere","everywhere","gone","dust","fragments","nothing","no","know","experiment","unfinished","exit"];
 var BASE = 46;
@@ -50,9 +47,10 @@ function spawn() {
     sway: r(0.01, 0.035), phase: r(0, 6.28), freq: r(0.15, 0.4),
     rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: 0,
     lastBlur: -1, lift: Math.random() < 0.25 ? r(0.08, 0.2) : r(-0.04, 0.04),
-    breakAt: (word === "enter" || word === "exit") ? 9 : Math.random() < 0.85 ? r(0.42, 0.72) : 9, broken: 0, nextBreak: 0, order: null
+    breakAt: (word === "enter" || word === "exit") ? 9 : Math.random() < 0.9 ? (r(0.38, 0.62) + r(0.38, 0.62)) / 2 : 9, broken: 0, nextBreak: 0, order: null
   };
-  d.Y = -0.5 - 0.6 * (1 + z * DEPTH);
+  var U0 = Math.min(innerWidth, innerHeight), s0 = 1 / (1 + z * DEPTH);
+  d.Y = (-innerHeight / 2 - d.h * s0 - 4) / (U0 * s0);
   if (word === "enter" || word === "exit") {
     el.addEventListener("click", function () {
       if (d.word === "enter" && !isFull()) {
@@ -100,8 +98,8 @@ function frame(now) {
         le.style.color = d.el.style.color; le.style.filter = d.el.style.filter; le.style.zIndex = d.el.style.zIndex;
         document.body.appendChild(le);
         sp.style.visibility = "hidden";
-        bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: r(-14, 14) * s, vy: d.vy * U * s * r(0.3, 0.7), g: r(1, 4) * s, rot: d.rot, vrot: r(-25, 25), fy: d.fy, vfy: r(-40, 40), life: 0, span: r(7, 14), lum: d.lum });
-        d.nextBreak = T + r(0.25, 0.9);
+        bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: r(-9, 9) * s, vy: d.vy * U * s * r(0.85, 1.1), g: r(0.5, 2) * s, rot: d.rot, vrot: r(-12, 12), fy: d.fy, vfy: r(-20, 20), life: 0, span: r(9, 16), lum: d.lum });
+        d.nextBreak = T + r(0.15, 0.55);
       }
       if (d.broken >= d.order.length) { d.el.remove(); drops.splice(i, 1); continue; }
     }
@@ -130,6 +128,8 @@ document.addEventListener("mousemove", wake);
 document.addEventListener("fullscreenchange", wake);
 document.addEventListener("webkitfullscreenchange", wake);
 spawn();
+setTimeout(spawn, 250);
+setTimeout(spawn, 600);
 requestAnimationFrame(frame);
 </script>
 </body>

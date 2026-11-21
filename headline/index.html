@@ -14,11 +14,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
 body { perspective: 800px; }
 .h { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; line-height: 1.15; max-width: min(64vw, 760px); will-change: transform; user-select: none; }
 .h .wd { display: inline-block; white-space: pre; }
-.l { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; mix-blend-mode: screen; transform-origin: 50% 50%; }
+.l { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; transform-origin: 50% 50%; }
+canvas { position: absolute; left: 0; top: 0; }
 </style>
 </head>
 <body>
+<canvas id="pile"></canvas>
 <script>
+var pile = document.getElementById("pile");
+var ctx = pile.getContext("2d");
+var dpr = window.devicePixelRatio || 1;
+var COL = 4;
+var heights = [];
+function setupPile() {
+pile.width = innerWidth * dpr;
+pile.height = innerHeight * dpr;
+pile.style.width = innerWidth + "px";
+pile.style.height = innerHeight + "px";
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+heights = new Array(Math.ceil(innerWidth / COL) + 1).fill(0);
+}
+setupPile();
+window.addEventListener("resize", setupPile);
+function gray(op) { var v = Math.round(242 * op); return "rgb(" + v + "," + v + "," + v + ")"; }
 var heads = [];
 var next = 0;
 var items = [];
@@ -47,7 +65,7 @@ var size = rank < 3 ? r(26, 32) : rank < 10 ? r(19, 24) : r(15, 19);
 var levels = [0.95, 0.5, 0.8, 0.38, 0.9, 0.62];
 var op = levels[(next - 1) % levels.length];
 el.style.fontSize = size + "px";
-el.style.opacity = op;
+el.style.color = gray(op);
 el.style.transform = "translate(-9999px,-9999px)";
 var words = text.split(" ");
 for (var w = 0; w < words.length; w++) {
@@ -84,17 +102,63 @@ var el = document.createElement("div");
 el.className = "l";
 el.textContent = span.textContent;
 el.style.fontSize = it.size + "px";
-el.style.opacity = it.op;
+el.style.color = gray(it.op);
 el.style.transform = "translate3d(" + b.left + "px," + b.top + "px,0)";
 document.body.appendChild(el);
 span.style.visibility = "hidden";
 loose.push({
-el: el, op: it.op, fade: r(0.008, 0.03),
+el: el, op: it.op, size: it.size, ch: span.textContent,
+w: b.width, h: b.height,
 x: b.left, y: b.top,
 vy: it.vy * r(0.15, 0.45), ay: r(0.5, 3), vx: r(-8, 8), ax: r(-3, 3),
 rot: 0, vrot: r(-25, 25),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
+}
+
+function spanTop(c0, c1) {
+var t = 0;
+for (var c = Math.max(0, c0); c <= Math.min(heights.length - 1, c1); c++) if (heights[c] > t) t = heights[c];
+return t;
+}
+function settle(p) {
+var n = Math.max(1, Math.round(p.w / COL));
+var c0 = Math.max(0, Math.floor(p.x / COL));
+var maxC = heights.length - n;
+if (c0 > maxC) c0 = maxC;
+for (var step = 0; step < 400; step++) {
+var here = spanTop(c0, c0 + n - 1);
+var left = c0 > 0 ? spanTop(c0 - 1, c0 + n - 2) : Infinity;
+var right = c0 < maxC ? spanTop(c0 + 1, c0 + n) : Infinity;
+var low = Math.min(left, right);
+if (low >= here - 3) break;
+c0 += (left <= right) ? -1 : 1;
+}
+return c0;
+}
+function draw(p) {
+ctx.save();
+ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+ctx.rotate(p.rot * Math.PI / 180);
+var sx = Math.cos(p.fy * Math.PI / 180);
+if (Math.abs(sx) < 0.08) sx = sx < 0 ? -0.08 : 0.08;
+ctx.scale(sx, 1);
+ctx.fillStyle = gray(p.op);
+ctx.font = "700 " + p.size + "px Helvetica, Arial, sans-serif";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText(p.ch, 0, 0);
+ctx.restore();
+}
+function land(p) {
+var n = Math.max(1, Math.round(p.w / COL));
+var c0 = settle(p);
+var top = spanTop(c0, c0 + n - 1);
+p.x = c0 * COL;
+p.y = innerHeight - top - p.h;
+draw(p);
+var rise = top + p.h * 0.35;
+for (var c = c0; c < c0 + n && c < heights.length; c++) if (heights[c] < rise) heights[c] = rise;
 }
 
 var last = performance.now();
@@ -131,15 +195,22 @@ p.vx += p.ax * dt;
 p.vy += p.ay * dt;
 p.x += p.vx * dt;
 p.y += p.vy * dt;
+if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); p.ax = Math.abs(p.ax); }
+if (p.x > innerWidth - p.w) { p.x = innerWidth - p.w; p.vx = -Math.abs(p.vx); p.ax = -Math.abs(p.ax); }
 p.rot += p.vrot * dt;
 p.fy += p.vfy * dt;
-p.op -= p.fade * dt;
-p.el.style.opacity = Math.max(0, p.op);
-p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
-if (p.y > innerHeight + 60 || p.x < -80 || p.x > innerWidth + 80 || p.op <= 0) {
+var c0 = Math.max(0, Math.floor(p.x / COL)), c1 = Math.min(heights.length - 1, Math.floor((p.x + p.w) / COL));
+var top = 0;
+for (var c = c0; c <= c1; c++) if (heights[c] > top) top = heights[c];
+var surface = innerHeight - top;
+if (p.y + p.h >= surface) {
+if (p.y + p.h - surface <= p.h) land(p);
+else draw(p);
 p.el.remove();
 loose.splice(k, 1);
+continue;
 }
+p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
 }
 requestAnimationFrame(frame);
 }

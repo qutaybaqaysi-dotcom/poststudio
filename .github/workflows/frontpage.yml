@@ -1,0 +1,86 @@
+name: front page
+
+on:
+  schedule:
+    - cron: "41 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture and redact the front page
+        run: |
+          pip install --quiet playwright pillow
+          python3 -m playwright install --with-deps chromium > /dev/null
+          python3 - <<'PY'
+          import sys
+          from playwright.sync_api import sync_playwright
+          from PIL import Image
+          HIDE = """
+          img, picture, video, svg, canvas, iframe, object, embed { visibility: hidden !important; }
+          *, *::before, *::after { animation: none !important; transition: none !important; }
+          """
+          REDACT = r"""
+          () => {
+            const boxes = [];
+            const sx = window.scrollX, sy = window.scrollY;
+            const box = (r) => { if (r.width >= 2 && r.height >= 2) boxes.push([r.left + sx, r.top + sy, r.width, r.height]); };
+            document.querySelectorAll("img, picture, video, svg, canvas, iframe, figure, object, embed").forEach(e => box(e.getBoundingClientRect()));
+            document.querySelectorAll("body *").forEach(e => {
+              const bg = getComputedStyle(e).backgroundImage;
+              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) box(e.getBoundingClientRect());
+            });
+            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            let n, lines = 0;
+            while ((n = walk.nextNode())) {
+              if (!n.textContent.trim()) continue;
+              const rg = document.createRange();
+              rg.selectNodeContents(n);
+              for (const r of rg.getClientRects()) {
+                if (r.width < 1 || r.height < 2) continue;
+                const top = r.height * 0.24, bottom = r.height * 0.24;
+                boxes.push([r.left + sx, r.top + sy + top, r.width, r.height - top - bottom]);
+                lines++;
+              }
+            }
+            const layer = document.createElement("div");
+            layer.style.cssText = "position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none";
+            for (const [x, y, w, h] of boxes) {
+              const d = document.createElement("div");
+              d.style.cssText = "position:absolute;background:#000;left:" + x + "px;top:" + y + "px;width:" + w + "px;height:" + h + "px";
+              layer.appendChild(d);
+            }
+            document.body.appendChild(layer);
+            return lines;
+          }
+          """
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              pg = b.new_page(viewport={"width": 1440, "height": 2400},
+                              user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+              pg.goto("https://www.nytimes.com/", wait_until="domcontentloaded", timeout=60000)
+              pg.wait_for_timeout(6000)
+              pg.mouse.wheel(0, 2400)
+              pg.wait_for_timeout(2500)
+              pg.evaluate("window.scrollTo(0, 0)")
+              pg.wait_for_timeout(2500)
+              title = pg.title()
+              pg.add_style_tag(content=HIDE)
+              lines = pg.evaluate(REDACT)
+              print("title:", title, "| redacted lines:", lines)
+              if "New York Times" not in title or lines < 60:
+                  sys.exit("This does not look like the front page, so nothing was saved.")
+              pg.wait_for_timeout(300)
+              pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
+              b.close()
+          Image.open("/tmp/front.png").convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
+          PY
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update front page
+          file_pattern: frontpage/front.jpg

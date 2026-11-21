@@ -30,7 +30,7 @@ return list;
 
 function spawnHeadline() {
 var prev = items[items.length - 1];
-if (prev && prev.y < 50) { setTimeout(spawnHeadline, 400); return; }
+if (prev && prev.y < 80) { setTimeout(spawnHeadline, 400); return; }
 if (heads.length) {
 var rank = next % heads.length;
 var text = heads[rank];
@@ -93,9 +93,18 @@ function frame(now) {
 var dt = Math.min(0.05, (now - last) / 1000);
 last = now;
 var third = innerHeight / 3;
+var order = items.slice().sort(function (a, b) { return b.y - a.y; });
+for (var o = 1; o < order.length; o++) {
+var ahead = order[o - 1], me = order[o];
+me.y += me.vy * dt;
+var limit = ahead.y - me.h - 60;
+if (me.y > limit) me.y = limit;
+me.moved = true;
+}
+if (order.length) { order[0].y += order[0].vy * dt; order[0].moved = true; }
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
-it.y += it.vy * dt;
+it.moved = false;
 var progress = Math.min(1, Math.max(0, it.y / (innerHeight * 0.65)));
 var target = Math.round(Math.pow(progress, 2.6) * it.letters.length);
 while (it.gone < target) { detach(it.letters[it.gone], it); it.gone++; }

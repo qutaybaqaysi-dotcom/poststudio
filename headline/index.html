@@ -53,6 +53,11 @@ return t;
 }
 function surfaceAt(x0, x1) { return innerHeight - visTop(x0, x1); }
 
+function bottomFirst(list) {
+list.forEach(function (s) { s.__k = s.offsetTop * 1000 + Math.random() * 999; });
+return list.sort(function (a, b) { return b.__k - a.__k; });
+}
+
 function shuffle(list) {
 for (var i = list.length - 1; i > 0; i--) {
 var j = Math.floor(Math.random() * (i + 1));
@@ -100,7 +105,7 @@ y: -el.offsetHeight - 10,
 h: el.offsetHeight,
 w: el.offsetWidth,
 vy: (innerHeight / 3) / r(7, 11),
-letters: shuffle(Array.prototype.slice.call(el.querySelectorAll(".c"))),
+letters: bottomFirst(Array.prototype.slice.call(el.querySelectorAll(".c"))),
 gone: 0,
 count: 0
 };
@@ -125,8 +130,8 @@ loose.push({
 el: el, op: it.op, size: it.size, ch: span.textContent,
 w: b.width, h: b.height,
 x: b.left, y: b.top,
-vy: it.vy * r(0.15, 0.45), ay: r(0.5, 3), vx: r(-8, 8), ax: r(-3, 3),
-rot: 0, vrot: r(-25, 25),
+vy: it.vy * 0.3 + r(-14, 6), g: r(8, 18), ramp: r(2, 4), age: 0, vx: r(-26, 26), ax: 0,
+rot: 0, vrot: r(-20, 20),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
 }
@@ -231,8 +236,9 @@ p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.
 if (e >= 1) { draw(p); p.el.remove(); loose.splice(k, 1); }
 continue;
 }
-p.vx += p.ax * dt;
-p.vy += p.ay * dt;
+p.age += dt;
+p.vy += p.g * Math.min(1, p.age / p.ramp) * dt;
+p.vx *= (1 - 0.25 * dt);
 p.x += p.vx * dt;
 p.y += p.vy * dt;
 if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); p.ax = Math.abs(p.ax); }

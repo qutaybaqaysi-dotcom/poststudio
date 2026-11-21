@@ -95,7 +95,7 @@ jobs:
           NAMES = {"https://www.nytimes.com/": "The New York Times", "https://apnews.com/": "Associated Press", "https://www.reuters.com/": "Reuters", "https://www.bbc.com/news": "BBC News", "https://en.wikipedia.org/wiki/Main_Page": "Wikipedia"}
           now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
           with open("frontpage/meta.json", "w") as f:
-              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y")}, f)
+              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M")}, f)
           Image.open("/tmp/front.png").convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5

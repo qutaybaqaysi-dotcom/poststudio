@@ -7,35 +7,118 @@
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
 body { perspective: 800px; }
-.w { position: absolute; top: -3em; font-family: Helvetica, Arial, sans-serif; color: #111; white-space: nowrap; will-change: transform; user-select: none; mix-blend-mode: multiply; }
+.w { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; color: #111; white-space: pre; will-change: transform; user-select: none; mix-blend-mode: multiply; transform-origin: 50% 50%; }
 </style>
 </head>
 <body>
 <script>
-const words = ["small", "unfinished", "experimental", "changing", "falling", "fragments", "nothing", "beginning", "end", "blips"];
-const r = (a, b) => a + Math.random() * (b - a);
-function drop() {
-const el = document.createElement("div");
+var plain = ["blips", "fall", "change", "begin", "end", "start", "start again", "here", "now", "there", "gone", "dust", "tickle", "no"];
+var peel = [["nothing", "end"], ["falling", "end"], ["starting", "end"], ["nowhere", "end"], ["know", "start"]];
+var loaded = ["experimental", "changing", "fragments", "unfinished"];
+var parts = [];
+function r(a, b) { return a + Math.random() * (b - a); }
+function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+function make(text, size, opacity) {
+var el = document.createElement("div");
 el.className = "w";
-el.textContent = words[Math.floor(Math.random() * words.length)];
-el.style.fontSize = r(10, 56) + "px";
-el.style.opacity = r(0.12, 0.9).toFixed(2);
-document.body.appendChild(el);
-el.style.left = r(-0.05, 1) * innerWidth + "px";
-const fall = innerHeight + 160;
-const sway = r(-80, 80);
-const spin = r(-360, 360);
-const flipY = Math.random() < 0.5 ? r(-540, 540) : 0;
-const flipX = Math.random() < 0.3 ? r(-360, 360) : 0;
-const time = r(2500, 22000);
-el.animate([
-{ transform: "translate3d(0, 0, 0) rotate(0deg) rotateY(0deg) rotateX(0deg)" },
-{ transform: "translate3d(" + sway + "px, " + fall * 0.5 + "px, 0) rotate(" + spin * 0.5 + "deg) rotateY(" + flipY * 0.5 + "deg) rotateX(" + flipX * 0.5 + "deg)" },
-{ transform: "translate3d(" + (-sway * 0.5) + "px, " + fall + "px, 0) rotate(" + spin + "deg) rotateY(" + flipY + "deg) rotateX(" + flipX + "deg)" }
-], { duration: time, easing: "linear", fill: "forwards" }).onfinish = () => el.remove();
-setTimeout(drop, r(120, 650));
+for (var i = 0; i < text.length; i++) {
+var s = document.createElement("span");
+s.textContent = text[i];
+el.appendChild(s);
 }
-drop();
+el.style.fontSize = size + "px";
+el.style.opacity = opacity;
+document.body.appendChild(el);
+var p = {
+el: el, size: size, op: opacity, fade: 0,
+x: 0, y: 0, vy: r(30, 350), vx: r(-15, 15),
+sway: r(0, 40), swayRate: r(0.3, 1.2), phase: r(0, 6.28),
+rot: 0, vrot: r(-60, 60),
+fy: 0, vfy: Math.random() < 0.5 ? r(-120, 120) : 0,
+fx: 0, vfx: Math.random() < 0.3 ? r(-90, 90) : 0,
+mode: null, from: "end", breakAt: 0, t: 0
+};
+parts.push(p);
+return p;
+}
+
+function spawn() {
+if (parts.length < 400) {
+var g = Math.random();
+var p;
+if (g < 0.6) {
+p = make(pick(plain), r(10, 48), r(0.15, 0.9));
+} else if (g < 0.85) {
+var w = pick(peel);
+p = make(w[0], r(18, 64), r(0.2, 0.9));
+if (Math.random() < 0.7) { p.mode = "peel"; p.from = w[1]; p.breakAt = r(0.6, 4); }
+} else {
+p = make(pick(loaded), r(36, 96), r(0.15, 0.8));
+if (Math.random() < 0.8) { p.mode = "dust"; p.breakAt = r(0.8, 5); }
+}
+p.x = r(-0.05, 1) * innerWidth;
+p.y = -p.el.offsetHeight - 10;
+}
+setTimeout(spawn, r(150, 600));
+}
+
+function loose(span, from, scatter) {
+var b = span.getBoundingClientRect();
+var q = make(span.textContent, from.size, from.op);
+q.x = b.left + b.width / 2 - q.el.offsetWidth / 2;
+q.y = b.top + b.height / 2 - q.el.offsetHeight / 2;
+q.vy = from.vy * r(0.9, 1.7);
+q.vx = from.vx + r(-scatter, scatter);
+q.rot = from.rot;
+q.vrot = r(-240, 240);
+q.vfy = r(-300, 300);
+q.phase = 0;
+return q;
+}
+
+function breakWord(p) {
+var spans = p.el.children;
+if (p.mode === "peel") {
+if (spans.length <= 1) { p.mode = null; return; }
+var s = p.from === "end" ? spans[spans.length - 1] : spans[0];
+loose(s, p, 30);
+s.remove();
+if (Math.random() < 0.25) { p.mode = null; } else { p.breakAt = p.t + r(0.3, 1.2); }
+} else if (p.mode === "dust") {
+for (var i = 0; i < spans.length; i++) {
+var q = loose(spans[i], p, 120);
+q.fade = r(0.05, 0.3);
+}
+p.dead = true;
+}
+}
+
+var last = performance.now();
+function frame(now) {
+var dt = Math.min(0.05, (now - last) / 1000);
+last = now;
+for (var i = parts.length - 1; i >= 0; i--) {
+var p = parts[i];
+p.t += dt;
+p.y += p.vy * dt;
+p.x += p.vx * dt;
+p.rot += p.vrot * dt;
+p.fy += p.vfy * dt;
+p.fx += p.vfx * dt;
+if (p.fade) { p.op -= p.fade * dt; p.el.style.opacity = Math.max(0, p.op); }
+if (p.mode && p.t >= p.breakAt) breakWord(p);
+var sx = Math.sin(p.t * p.swayRate + p.phase) * p.sway;
+p.el.style.transform = "translate3d(" + (p.x + sx) + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg) rotateX(" + p.fx + "deg)";
+if (p.dead || p.y > innerHeight + 120 || p.op <= 0) {
+p.el.remove();
+parts.splice(i, 1);
+}
+}
+requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+spawn();
 </script>
 </body>
 </html>

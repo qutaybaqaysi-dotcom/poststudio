@@ -30,9 +30,11 @@ function nextWord() {
   return bag.pop();
 }
 var drops = [];
+var spawned = 0, firstEnter = 4 + Math.floor(Math.random() * 3);
 var bits = [];
 function spawn() {
-  var word = nextWord();
+  spawned++;
+  var word = (spawned === firstEnter && canFull && !isFull()) ? "enter" : nextWord();
   while ((word === "enter" && (isFull() || !canFull)) || (word === "exit" && !canFull)) word = nextWord();
   var el = document.createElement("div");
   el.className = "w";

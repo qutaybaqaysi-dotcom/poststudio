@@ -91,9 +91,14 @@ jobs:
           if not saved:
               sys.exit("No site let the browser through; nothing was saved.")
           print("saved from", saved)
+          import json, datetime, zoneinfo
+          NAMES = {"https://www.nytimes.com/": "The New York Times", "https://apnews.com/": "Associated Press", "https://www.reuters.com/": "Reuters", "https://www.bbc.com/news": "BBC News", "https://en.wikipedia.org/wiki/Main_Page": "Wikipedia"}
+          now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
+          with open("frontpage/meta.json", "w") as f:
+              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y")}, f)
           Image.open("/tmp/front.png").convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Update front page
-          file_pattern: frontpage/front.jpg
+          file_pattern: frontpage/front.jpg frontpage/meta.json

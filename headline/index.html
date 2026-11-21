@@ -29,6 +29,8 @@ return list;
 }
 
 function spawnHeadline() {
+var prev = items[items.length - 1];
+if (prev && prev.y < 50) { setTimeout(spawnHeadline, 400); return; }
 if (heads.length) {
 var rank = next % heads.length;
 var text = heads[rank];
@@ -80,7 +82,7 @@ span.style.visibility = "hidden";
 loose.push({
 el: el, op: it.op, fade: r(0.02, 0.08),
 x: b.left, y: b.top,
-vy: it.vy * r(0.9, 1.3), vx: r(-20, 20), ax: r(-8, 8),
+vy: it.vy * r(0.55, 0.95), ay: r(3, 10), vx: r(-12, 12), ax: r(-6, 6),
 rot: 0, vrot: r(-25, 25),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
@@ -106,6 +108,7 @@ items.splice(i, 1);
 for (var k = loose.length - 1; k >= 0; k--) {
 var p = loose[k];
 p.vx += p.ax * dt;
+p.vy += p.ay * dt;
 p.x += p.vx * dt;
 p.y += p.vy * dt;
 p.rot += p.vrot * dt;

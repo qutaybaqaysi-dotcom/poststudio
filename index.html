@@ -12,30 +12,44 @@ a.word:hover { filter: blur(0); color: #fff; text-shadow: none; }
 </head>
 <body>
 <a class="word" href="rain/">rain</a>
+<a class="word" href="headline/">headline</a>
 <script>
-var el = document.querySelector(".word");
-var x = innerWidth / 2 - 20, y = innerHeight / 2 - 10;
-var angle = Math.random() * 6.28;
-var speed = 9;
-var paused = false;
-el.addEventListener("mouseenter", function () { paused = true; });
-el.addEventListener("mouseleave", function () { paused = false; });
+var words = [];
+var els = document.querySelectorAll(".word");
+for (var i = 0; i < els.length; i++) {
+(function (el) {
+var w = {
+el: el,
+x: innerWidth * (0.25 + Math.random() * 0.5),
+y: innerHeight * (0.25 + Math.random() * 0.5),
+angle: Math.random() * 6.28,
+speed: 7 + Math.random() * 4,
+paused: false
+};
+el.addEventListener("mouseenter", function () { w.paused = true; });
+el.addEventListener("mouseleave", function () { w.paused = false; });
+words.push(w);
+})(els[i]);
+}
 var last = performance.now();
 function frame(now) {
 var dt = Math.min(0.05, (now - last) / 1000);
 last = now;
-if (!paused) {
-angle += (Math.random() - 0.5) * 0.6 * dt;
-x += Math.cos(angle) * speed * dt;
-y += Math.sin(angle) * speed * dt;
+for (var i = 0; i < words.length; i++) {
+var w = words[i];
+if (!w.paused) {
+w.angle += (Math.random() - 0.5) * 0.6 * dt;
+w.x += Math.cos(w.angle) * w.speed * dt;
+w.y += Math.sin(w.angle) * w.speed * dt;
 var m = 60;
-var w = el.offsetWidth, h = el.offsetHeight;
-if (x < m) { x = m; angle = Math.PI - angle; }
-if (x > innerWidth - w - m) { x = innerWidth - w - m; angle = Math.PI - angle; }
-if (y < m) { y = m; angle = -angle; }
-if (y > innerHeight - h - m) { y = innerHeight - h - m; angle = -angle; }
+var ew = w.el.offsetWidth, eh = w.el.offsetHeight;
+if (w.x < m) { w.x = m; w.angle = Math.PI - w.angle; }
+if (w.x > innerWidth - ew - m) { w.x = innerWidth - ew - m; w.angle = Math.PI - w.angle; }
+if (w.y < m) { w.y = m; w.angle = -w.angle; }
+if (w.y > innerHeight - eh - m) { w.y = innerHeight - eh - m; w.angle = -w.angle; }
 }
-el.style.transform = "translate(" + x + "px," + y + "px)";
+w.el.style.transform = "translate(" + w.x + "px," + w.y + "px)";
+}
 requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

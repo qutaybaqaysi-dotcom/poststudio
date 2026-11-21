@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Capture and redact the front page
         run: |
-          pip install --quiet playwright pillow
+          pip install --quiet playwright pillow "rembg[cpu]" numpy scipy
           python3 -m playwright install --with-deps chromium > /dev/null
           python3 - <<'PY'
           import sys
@@ -29,11 +29,16 @@ jobs:
             const boxes = [];
             const sx = window.scrollX, sy = window.scrollY;
             const box = (r) => { if (r.width >= 2 && r.height >= 2) { const ix = Math.min(r.width * 0.05, 14), iy = Math.min(r.height * 0.05, 14); boxes.push([r.left + sx + ix, r.top + sy + iy, r.width - 2 * ix, r.height - 2 * iy]); } };
-            document.querySelectorAll("img, picture, video, svg, canvas, iframe, figure, object, embed").forEach(e => box(e.getBoundingClientRect()));
+            const photos = [];
+            const photo = (r) => { if (r.width >= 40 && r.height >= 40 && r.bottom > 0 && r.top < 2400) photos.push([r.left + sx, r.top + sy, r.width, r.height]); };
+            const band = (r) => { if (r.width >= 2 && r.height >= 2) boxes.push([r.left + sx, r.top + sy + r.height * 0.33, r.width, r.height * 0.34]); };
+            document.querySelectorAll("img, video").forEach(e => photo(e.getBoundingClientRect()));
             document.querySelectorAll("body *").forEach(e => {
               const bg = getComputedStyle(e).backgroundImage;
-              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) box(e.getBoundingClientRect());
+              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) photo(e.getBoundingClientRect());
             });
+            document.querySelectorAll("svg, canvas").forEach(e => band(e.getBoundingClientRect()));
+            document.querySelectorAll("iframe, object, embed").forEach(e => box(e.getBoundingClientRect()));
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let n, lines = 0;
             while ((n = walk.nextNode())) {
@@ -55,7 +60,7 @@ jobs:
               layer.appendChild(d);
             }
             document.body.appendChild(layer);
-            return lines;
+            return {lines: lines, photos: photos};
           }
           """
           SITES = ["https://www.nytimes.com/", "https://apnews.com/", "https://www.reuters.com/", "https://www.bbc.com/news", "https://en.wikipedia.org/wiki/Main_Page"]
@@ -73,7 +78,8 @@ jobs:
                       pg.evaluate("window.scrollTo(0, 0)")
                       pg.wait_for_timeout(2500)
                       pg.add_style_tag(content=HIDE)
-                      lines = pg.evaluate(REDACT)
+                      res = pg.evaluate(REDACT)
+                      lines, photos = res["lines"], res["photos"]
                   except Exception as e:
                       print(url, "failed:", e)
                       pg.close()
@@ -95,7 +101,33 @@ jobs:
           now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
           with open("frontpage/meta.json", "w") as f:
               json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M")}, f)
-          Image.open("/tmp/front.png").convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
+          import numpy as np
+          from scipy import ndimage
+          from PIL import ImageDraw
+          from rembg import remove, new_session
+          im = Image.open("/tmp/front.png").convert("RGB")
+          draw = ImageDraw.Draw(im)
+          session = new_session("u2net_human_seg")
+          people = 0
+          for x, y, w, h in photos:
+              x0, y0 = max(0, int(x)), max(0, int(y))
+              x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
+              if x1 - x0 < 40 or y1 - y0 < 40:
+                  continue
+              crop = im.crop((x0, y0, x1, y1))
+              mask = np.array(remove(crop, session=session, only_mask=True).convert("L")) > 120
+              labels, n = ndimage.label(mask)
+              for sl in ndimage.find_objects(labels):
+                  if sl is None:
+                      continue
+                  hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+                  if hh * ww < 0.015 * mask.size:
+                      continue
+                  pad = int(0.04 * max(hh, ww))
+                  draw.rectangle([x0 + max(0, sl[1].start - pad), y0 + max(0, sl[0].start - pad), x0 + min(x1 - x0, sl[1].stop + pad), y0 + min(y1 - y0, sl[0].stop + pad)], fill=(0, 0, 0))
+                  people += 1
+          print("photos:", len(photos), "| people blocked:", people)
+          im.convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:

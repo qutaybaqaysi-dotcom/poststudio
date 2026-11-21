@@ -22,14 +22,13 @@ jobs:
           from playwright.sync_api import sync_playwright
           from PIL import Image
           HIDE = """
-          img, picture, video, svg, canvas, iframe, object, embed { visibility: hidden !important; }
           *, *::before, *::after { animation: none !important; transition: none !important; }
           """
           REDACT = r"""
           () => {
             const boxes = [];
             const sx = window.scrollX, sy = window.scrollY;
-            const box = (r) => { if (r.width >= 2 && r.height >= 2) boxes.push([r.left + sx, r.top + sy, r.width, r.height]); };
+            const box = (r) => { if (r.width >= 2 && r.height >= 2) { const ix = Math.min(r.width * 0.05, 14), iy = Math.min(r.height * 0.05, 14); boxes.push([r.left + sx + ix, r.top + sy + iy, r.width - 2 * ix, r.height - 2 * iy]); } };
             document.querySelectorAll("img, picture, video, svg, canvas, iframe, figure, object, embed").forEach(e => box(e.getBoundingClientRect()));
             document.querySelectorAll("body *").forEach(e => {
               const bg = getComputedStyle(e).backgroundImage;
@@ -43,7 +42,7 @@ jobs:
               rg.selectNodeContents(n);
               for (const r of rg.getClientRects()) {
                 if (r.width < 1 || r.height < 2) continue;
-                const top = r.height * 0.24, bottom = r.height * 0.24;
+                const top = r.height * 0.33, bottom = r.height * 0.33;
                 boxes.push([r.left + sx, r.top + sy + top, r.width, r.height - top - bottom]);
                 lines++;
               }

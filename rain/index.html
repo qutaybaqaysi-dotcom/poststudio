@@ -33,12 +33,13 @@ function nextWord() {
   return bag.pop();
 }
 var drops = [];
+var bits = [];
 function spawn() {
   var word = nextWord();
   while ((word === "enter" && (isFull() || !canFull)) || (word === "exit" && !canFull)) word = nextWord();
   var el = document.createElement("div");
   el.className = "w";
-  el.textContent = word;
+  for (var c = 0; c < word.length; c++) { var sp = document.createElement("span"); sp.textContent = word[c]; el.appendChild(sp); }
   el.style.fontSize = BASE + "px";
   document.body.appendChild(el);
   var z = Math.pow(Math.random(), 0.8);
@@ -47,8 +48,9 @@ function spawn() {
     X: r(-0.55, 0.55), Y: 0, z: z,
     vy: r(0.035, 0.075), vz: r(-0.025, 0.025),
     sway: r(0.01, 0.035), phase: r(0, 6.28), freq: r(0.15, 0.4),
-    rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: Math.random() < 0.25 ? r(-14, 14) : 0,
-    lastBlur: -1
+    rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: 0,
+    lastBlur: -1, lift: Math.random() < 0.25 ? r(0.08, 0.2) : r(-0.04, 0.04),
+    breakAt: (word === "enter" || word === "exit") ? 9 : Math.random() < 0.85 ? r(0.42, 0.72) : 9, broken: 0, nextBreak: 0, order: null
   };
   d.Y = -0.5 - 0.6 * (1 + z * DEPTH);
   if (word === "enter" || word === "exit") {
@@ -83,14 +85,39 @@ function frame(now) {
     var sx = cx + X * W * s, sy = cy + d.Y * U * s;
     if (sy - d.h * s > H + 20) { d.el.remove(); drops.splice(i, 1); continue; }
     var near = 1 - d.z;
-    var b = Math.round(255 * (0.1 + 0.7 * Math.pow(near, 1.4)));
-    d.el.style.color = "rgb(" + b + "," + b + "," + b + ")";
     var blur = Math.round(d.z * d.z * 30 / s) / 10;
+    var lum = Math.min(0.8, Math.max(0.08, 0.1 + 0.7 * Math.pow(near, 1.4) + d.lift));
+    var b = Math.round(255 * lum); d.lum = lum; d.s = s; d.blur = blur;
+    d.el.style.color = "rgb(" + b + "," + b + "," + b + ")";
     if (blur !== d.lastBlur) { d.el.style.filter = blur > 0 ? "blur(" + blur + "px)" : "none"; d.lastBlur = blur; }
+    if (sy > H * d.breakAt) {
+      if (!d.order) { d.order = Array.prototype.slice.call(d.el.children); if (d.word !== "enter" && d.word !== "exit") { for (var k = d.order.length - 1; k > 0; k--) { var j = Math.floor(Math.random() * (k + 1)); var t = d.order[k]; d.order[k] = d.order[j]; d.order[j] = t; } } d.nextBreak = T; }
+      while (d.broken < d.order.length && T >= d.nextBreak) {
+        var sp = d.order[d.broken++];
+        var lx = sx + (sp.offsetLeft + sp.offsetWidth / 2 - d.w / 2) * s, ly = sy;
+        var le = document.createElement("div");
+        le.className = "w"; le.textContent = sp.textContent; le.style.fontSize = BASE + "px";
+        le.style.color = d.el.style.color; le.style.filter = d.el.style.filter; le.style.zIndex = d.el.style.zIndex;
+        document.body.appendChild(le);
+        sp.style.visibility = "hidden";
+        bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: r(-14, 14) * s, vy: d.vy * U * s * r(0.3, 0.7), g: r(1, 4) * s, rot: d.rot, vrot: r(-25, 25), fy: d.fy, vfy: r(-40, 40), life: 0, span: r(7, 14), lum: d.lum });
+        d.nextBreak = T + r(0.25, 0.9);
+      }
+      if (d.broken >= d.order.length) { d.el.remove(); drops.splice(i, 1); continue; }
+    }
     d.el.style.zIndex = String(1000 - Math.round(d.z * 1000));
     var door = (d.word === "enter" && !full) || (d.word === "exit" && full);
     d.el.className = door ? "w door" : "w";
     d.el.style.transform = "translate3d(" + (sx - d.w / 2) + "px," + (sy - d.h / 2) + "px,0) scale(" + s + ") rotate(" + d.rot + "deg) rotateY(" + d.fy + "deg)";
+  }
+  for (var q = bits.length - 1; q >= 0; q--) {
+    var p = bits[q];
+    p.life += dt; p.vy += p.g * dt; p.vx *= (1 - 0.15 * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vrot * dt; p.fy += p.vfy * dt;
+    var fade = Math.max(0, 1 - p.life / p.span);
+    if (fade <= 0 || p.y > H + 40 || p.x < -60 || p.x > W + 60) { p.el.remove(); bits.splice(q, 1); continue; }
+    p.el.style.opacity = String(fade);
+    p.el.style.transform = "translate3d(" + (p.x - p.w / 2) + "px," + (p.y - p.h / 2) + "px,0) scale(" + p.s + ") rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
   }
   requestAnimationFrame(frame);
 }

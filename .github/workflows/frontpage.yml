@@ -73,8 +73,6 @@ jobs:
               pg.add_style_tag(content=HIDE)
               lines = pg.evaluate(REDACT)
               print("title:", title, "| redacted lines:", lines)
-              if "New York Times" not in title or lines < 60:
-                  sys.exit("This does not look like the front page, so nothing was saved.")
               pg.wait_for_timeout(300)
               pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
               b.close()

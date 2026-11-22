@@ -27,6 +27,7 @@ button:focus-visible { outline: 1px solid #c4c4c4; }
 #framebar, #keptbar { background: #fff; bottom: 0; padding: 0 16px 6px; }
 #frame.kept { transition: transform .75s cubic-bezier(.2,.7,.2,1); box-shadow: 0 0 0 9999px #fff; border-color: #d8d8d8; cursor: grab; }
 body.sliding .sheet { transition: none; }
+#outline { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; pointer-events: none; z-index: 100001; }
 #print { position: absolute; display: none; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 #print .sheet { cursor: default; transition: none; }
 .code { font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -60,6 +61,7 @@ body.sliding .sheet { transition: none; }
 <a id="table" href="./" style="pointer-events:auto;color:#9a9a9a;text-decoration:none;padding:12px 0">table</a>
 </div>
 <div id="frame"></div>
+<div id="outline"></div>
 <div id="print"></div>
 <script>
 {
@@ -151,6 +153,8 @@ function drawFrame() {
   const fh = frame.w * 1.25, f = $("frame");
   f.style.width = frame.w + "px"; f.style.height = fh + "px";
   f.style.transform = "translate(" + (frame.x - frame.w / 2) + "px," + (frame.y - fh / 2) + "px)";
+  /* the frame's edge stays visible over the controls; only its contents go under */
+  const o = $("outline"); o.style.width = f.style.width; o.style.height = f.style.height; o.style.transform = f.style.transform;
 }
 function showBars(id) {
   ["nav", "framebar", "keptbar"].forEach(function (b) { $(b).style.display = b === id ? "flex" : "none"; });
@@ -161,9 +165,9 @@ let kept = false;
 function startFrame() {
   framing = true;
   if (!frame.w) { frame.w = Math.min(SH * 0.75, W * 0.8); frame.x = C.x; frame.y = C.y; }
-  $("frame").style.display = "block"; drawFrame(); showBars("framebar");
+  $("frame").style.display = "block"; $("outline").style.display = kept ? "none" : "block"; drawFrame(); showBars("framebar");
 }
-function endFrame() { framing = false; $("frame").style.display = "none"; showBars("nav"); }
+function endFrame() { framing = false; $("frame").style.display = "none"; $("outline").style.display = "none"; showBars("nav"); }
 let fd = null;
 /* crop stage: the stack is locked and the frame moves; kept stage: the frame is fixed and the whole stack slides beneath it */
 $("frame").addEventListener("pointerdown", function (e) {
@@ -199,7 +203,7 @@ function decode(c) {
 }
 $("keep").addEventListener("click", function () {
   link = location.origin + location.pathname + "?c=" + encode();
-  kept = true; $("frame").classList.add("kept"); showBars("keptbar");
+  kept = true; $("frame").classList.add("kept"); $("outline").style.display = "none"; showBars("keptbar");
   /* the frame and the stack move together into clear view, centered above the controls */
   const dx = W / 2 - frame.x, dy = (8 + H - 52) / 2 - frame.y;
   frame.x += dx; frame.y += dy; drawFrame();

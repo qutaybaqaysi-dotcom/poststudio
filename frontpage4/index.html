@@ -24,7 +24,8 @@ button:focus-visible { outline: 1px solid #c4c4c4; }
 .sheet img { filter: brightness(.95); display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
 .sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
 #frame { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; box-shadow: 0 0 0 9999px rgba(255,255,255,.82); cursor: move; z-index: 90000; }
-#frame.kept { box-shadow: 0 0 0 9999px #fff; border-color: #d8d8d8; cursor: grab; }
+#framebar, #keptbar { background: #fff; bottom: 0; padding: 0 16px 6px; }
+#frame.kept { transition: transform .75s cubic-bezier(.2,.7,.2,1); box-shadow: 0 0 0 9999px #fff; border-color: #d8d8d8; cursor: grab; }
 body.sliding .sheet { transition: none; }
 #print { position: absolute; display: none; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 #print .sheet { cursor: default; transition: none; }
@@ -148,7 +149,6 @@ function drawFrame() {
   const top = 8, bot = H - 52;
   frame.w = Math.min(frame.w, (bot - top) / 1.25, W - 16);
   const fh = frame.w * 1.25, f = $("frame");
-  frame.y = Math.max(top + fh / 2, Math.min(bot - fh / 2, frame.y));
   f.style.width = frame.w + "px"; f.style.height = fh + "px";
   f.style.transform = "translate(" + (frame.x - frame.w / 2) + "px," + (frame.y - fh / 2) + "px)";
 }
@@ -200,6 +200,10 @@ function decode(c) {
 $("keep").addEventListener("click", function () {
   link = location.origin + location.pathname + "?c=" + encode();
   kept = true; $("frame").classList.add("kept"); showBars("keptbar");
+  /* the frame and the stack move together into clear view, centered above the controls */
+  const dx = W / 2 - frame.x, dy = (8 + H - 52) / 2 - frame.y;
+  frame.x += dx; frame.y += dy; drawFrame();
+  sheets.forEach(function (s) { s.x += dx; s.y += dy; place(s); });
 });
 $("copy").addEventListener("click", function () {
   try { navigator.clipboard.writeText(link).then(function () { $("copy").textContent = "copied"; }); } catch (e) {}

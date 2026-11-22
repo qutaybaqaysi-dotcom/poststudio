@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f2f2f2; touch-action: none; -webkit-user-select: none; user-select: none; }
+header { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 6px 22px 0; font: 14px/1.6 Helvetica, Arial, sans-serif; color: #c4c4c4; z-index: 100000; pointer-events: none; }
+nav { position: fixed; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 28px; z-index: 100000; pointer-events: none; }
+button { pointer-events: auto; font: 14px/1 Helvetica, Arial, sans-serif; color: #c4c4c4; background: none; border: 0; padding: 0; min-width: 44px; min-height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.2; }
+button:hover { color: #9a9a9a; }
+button:focus-visible { outline: 1px solid #c4c4c4; }
+.sheet { position: absolute; left: 0; top: 0; cursor: grab; will-change: transform; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.14)); transition: transform .75s cubic-bezier(.2,.7,.2,1); }
+.sheet img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+.sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
+@media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+</style>
+</head>
+<body>
+<header><span id="stamp"></span><button id="gather" type="button">gather</button></header>
+<nav>
+<button id="left" type="button" aria-label="left pile"><svg viewBox="0 0 22 22"><path d="M17 11H5M10 6l-5 5 5 5"/></svg></button>
+<button id="center" type="button" aria-label="center"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="6"/></svg></button>
+<button id="right" type="button" aria-label="right pile"><svg viewBox="0 0 22 22"><path d="M5 11h12M12 6l5 5-5 5"/></svg></button>
+</nav>
+<script>
+{
+const BASE = "../frontpage/";
+let W, H, SW, SH, A, B, C;
+const sheets = [];
+let z = 1;
+function r(a, b) { return a + Math.random() * (b - a); }
+function measure() {
+  W = innerWidth; H = innerHeight;
+  const wide = W > H * 0.95;
+  SH = Math.min(H * 0.8, (wide ? W * 0.42 : W * 0.78) / 0.6);
+  SW = SH * 0.6;
+  const cy = H / 2;
+  C = { x: W / 2, y: cy };
+  A = wide ? { x: W * 0.28, y: cy } : { x: W / 2 - W * 0.06, y: cy };
+  B = wide ? { x: W * 0.72, y: cy } : { x: W / 2 + W * 0.06, y: cy + 16 };
+}
+function place(s) {
+  s.el.style.width = SW + "px"; s.el.style.height = SH + "px";
+  s.el.style.transform = "translate(" + (s.x - SW / 2) + "px," + (s.y - SH / 2) + "px) rotate(" + s.rot + "deg)";
+  s.el.style.zIndex = s.z;
+}
+function moveAll(t, name) {
+  sheets.slice().sort(function (a, b) { return a.z - b.z; }).forEach(function (s) {
+    s.x = t.x + r(-5, 5); s.y = t.y + r(-5, 5); s.rot = r(-1.5, 1.5); s.pile = name; place(s);
+  });
+}
+function gather() {
+  sheets.forEach(function (s, i) {
+    s.x = C.x + r(-4, 4); s.y = C.y + r(-4, 4); s.rot = r(-1.2, 1.2); s.pile = "C";
+    s.z = z + (sheets.length - i); place(s);
+  });
+  z += sheets.length + 1;
+}
+function add(src) {
+  const el = document.createElement("div"); el.className = "sheet";
+  const im = document.createElement("img"); im.src = src; im.alt = ""; im.draggable = false;
+  el.appendChild(im); document.body.appendChild(el);
+  const s = { el: el, x: 0, y: 0, rot: 0, z: 0, pile: "C" };
+  sheets.push(s);
+  let start = null;
+  el.addEventListener("pointerdown", function (e) {
+    el.setPointerCapture(e.pointerId);
+    s.z = ++z; el.classList.add("held");
+    start = { px: e.clientX, py: e.clientY, x: s.x, y: s.y, moved: 0 };
+    place(s);
+  });
+  el.addEventListener("pointermove", function (e) {
+    if (!start) return;
+    const dx = e.clientX - start.px, dy = e.clientY - start.py;
+    start.moved = Math.max(start.moved, Math.abs(dx) + Math.abs(dy));
+    s.x = start.x + dx; s.y = start.y + dy; place(s);
+  });
+  function release() {
+    if (!start) return;
+    el.classList.remove("held");
+    if (start.moved < 6) {
+      const toB = s.pile !== "B";
+      const t = toB ? B : A;
+      s.pile = toB ? "B" : "A";
+      s.x = t.x + r(-14, 14); s.y = t.y + r(-10, 10);
+    } else {
+      s.x = Math.min(Math.max(s.x, SW * 0.2), W - SW * 0.2);
+      s.y = Math.min(Math.max(s.y, SH * 0.2), H - SH * 0.2);
+      s.pile = Math.hypot(s.x - A.x, s.y - A.y) < Math.hypot(s.x - B.x, s.y - B.y) ? "A" : "B";
+    }
+    s.rot = r(-3, 3);
+    start = null; place(s);
+  }
+  el.addEventListener("pointerup", release);
+  el.addEventListener("pointercancel", release);
+}
+function show(pages) {
+  const p0 = pages[0] || {};
+  document.getElementById("stamp").textContent = (p0.iso || "") + (p0.time ? " - " + p0.time : "");
+  const v = Date.now();
+  pages.forEach(function (pg) { add(BASE + pg.file.replace(".jpg", "_cut.webp") + "?" + v); });
+  measure(); gather();
+}
+fetch(BASE + "meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
+  show(m.pages || [{ file: "front.jpg", iso: m.iso, time: m.time }]);
+}).catch(function () { show([{ file: "front.jpg" }]); });
+addEventListener("resize", function () { measure(); moveAll(C, "C"); });
+document.getElementById("gather").addEventListener("click", gather);
+document.getElementById("left").addEventListener("click", function () { moveAll(A, "A"); });
+document.getElementById("center").addEventListener("click", function () { moveAll(C, "C"); });
+document.getElementById("right").addEventListener("click", function () { moveAll(B, "B"); });
+}
+</script>
+</body>
+</html>

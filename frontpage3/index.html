@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f2f2f2; touch-action: none; -webkit-user-select: none; user-select: none; }
+header { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 6px 22px 0; font: 14px/1.6 Helvetica, Arial, sans-serif; color: #c4c4c4; z-index: 100000; pointer-events: none; }
+nav, .bar { position: fixed; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; align-items: center; gap: 28px; z-index: 100000; pointer-events: none; font: 14px/1.6 Helvetica, Arial, sans-serif; color: #a8a8a8; }
+.bar { display: none; flex-wrap: wrap; gap: 8px 24px; padding: 0 16px; }
+button { pointer-events: auto; font: 14px/1 Helvetica, Arial, sans-serif; color: #c4c4c4; background: none; border: 0; padding: 0; min-width: 44px; min-height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.bar button { color: #9a9a9a; }
+button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.2; }
+button:hover { color: #8a8a8a; }
+button:focus-visible { outline: 1px solid #c4c4c4; }
+#dot { position: fixed; right: 12px; bottom: 6px; z-index: 100000; }
+#dot span { width: 12px; height: 12px; border-radius: 50%; background: #c4c4c4; display: block; }
+#dot:hover span { background: #9a9a9a; }
+.sheet { position: absolute; left: 0; top: 0; cursor: grab; will-change: transform; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.14)); transition: transform .75s cubic-bezier(.2,.7,.2,1); }
+.cap { position: absolute; left: 0; top: 0; padding: 10px 12px; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #a8a8a8; background: #fff; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity .8s; }
+.sheet.held .cap, .sheet.show .cap { opacity: 1; transition: opacity .2s; }
+@media (hover: hover) { .sheet:hover .cap { opacity: 1; transition: opacity .2s; } }
+.sheet img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+.sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
+#frame { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; box-shadow: 0 0 0 9999px rgba(242,242,242,.82); cursor: move; z-index: 90000; }
+#print { position: absolute; display: none; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+#print .sheet { cursor: default; transition: none; }
+.code { font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+</style>
+</head>
+<body>
+<header><span id="stamp"></span><button id="gather" type="button">gather</button></header>
+<nav id="nav">
+<button id="left" type="button" aria-label="left pile"><svg viewBox="0 0 22 22"><path d="M17 11H5M10 6l-5 5 5 5"/></svg></button>
+<button id="center" type="button" aria-label="center"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="6"/></svg></button>
+<button id="right" type="button" aria-label="right pile"><svg viewBox="0 0 22 22"><path d="M5 11h12M12 6l5 5-5 5"/></svg></button>
+</nav>
+<button id="dot" type="button" aria-label="order"><span></span></button>
+<div class="bar" id="framebar">
+<span>16 x 20</span>
+<button id="smaller" type="button" aria-label="smaller">&minus;</button>
+<button id="larger" type="button" aria-label="larger">+</button>
+<button id="keep" type="button">keep</button>
+<button id="cancel" type="button">cancel</button>
+</div>
+<div class="bar" id="keptbar">
+<span>16 x 20 print, edition of 20</span>
+<button id="copy" type="button">copy link</button>
+<button id="order" type="button">order (coming soon)</button>
+<button id="close" type="button">close</button>
+</div>
+<div class="bar" id="printbar">
+<span id="printlabel"></span>
+<button id="file" type="button">print file</button>
+<a id="table" href="./" style="pointer-events:auto;color:#9a9a9a;text-decoration:none;padding:12px 0">table</a>
+</div>
+<div id="frame"></div>
+<div id="print"></div>
+<script>
+{
+const BASE = "../frontpage/";
+let W, H, SW, SH, A, B, C;
+const sheets = [];
+let z = 1, pages = [], dir = "", framing = false, link = "";
+const frame = { x: 0, y: 0, w: 0 };
+const $ = function (id) { return document.getElementById(id); };
+function r(a, b) { return a + Math.random() * (b - a); }
+function measure() {
+  W = innerWidth; H = innerHeight;
+  const wide = W > H * 0.95;
+  SH = Math.min(H * 0.8, (wide ? W * 0.42 : W * 0.78) / 0.6);
+  SW = SH * 0.6;
+  const cy = H / 2;
+  C = { x: W / 2, y: cy };
+  A = wide ? { x: W * 0.28, y: cy } : { x: W / 2 - W * 0.06, y: cy };
+  B = wide ? { x: W * 0.72, y: cy } : { x: W / 2 + W * 0.06, y: cy + 16 };
+}
+function place(s) {
+  s.el.style.width = SW + "px"; s.el.style.height = SH + "px";
+  s.el.style.transform = "translate(" + (s.x - SW / 2) + "px," + (s.y - SH / 2) + "px) rotate(" + s.rot + "deg)";
+  s.el.style.zIndex = s.z;
+}
+function moveAll(t, name) {
+  sheets.slice().sort(function (a, b) { return a.z - b.z; }).forEach(function (s) {
+    s.x = t.x + r(-5, 5); s.y = t.y + r(-5, 5); s.rot = r(-1.5, 1.5); s.pile = name; place(s);
+  });
+}
+function gather() {
+  sheets.forEach(function (s, i) {
+    s.x = C.x + r(-4, 4); s.y = C.y + r(-4, 4); s.rot = r(-1.2, 1.2); s.pile = "C";
+    s.z = z + (sheets.length - i); place(s);
+  });
+  z += sheets.length + 1;
+}
+function label(pg) { return (pg.name ? pg.name + ", " : "") + (pg.iso || "") + (pg.time ? " - " + pg.time : ""); }
+function srcOf(pg) { return (dir ? BASE + "archive/" + dir + "/" : BASE) + pg.file.replace(".jpg", "_cut.webp"); }
+function add(pg, parent) {
+  const el = document.createElement("div"); el.className = "sheet";
+  const im = document.createElement("img"); im.src = srcOf(pg); im.alt = ""; im.draggable = false;
+  el.appendChild(im);
+  const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = label(pg); el.appendChild(cap);
+  (parent || document.body).appendChild(el);
+  const s = { el: el, x: 0, y: 0, rot: 0, z: 0, pile: "C", pg: pg };
+  sheets.push(s);
+  if (parent) return s;
+  let start = null;
+  el.addEventListener("pointerdown", function (e) {
+    if (framing) return;
+    el.setPointerCapture(e.pointerId);
+    s.z = ++z; el.classList.add("held");
+    start = { px: e.clientX, py: e.clientY, x: s.x, y: s.y, moved: 0 };
+    place(s);
+  });
+  el.addEventListener("pointermove", function (e) {
+    if (!start) return;
+    const dx = e.clientX - start.px, dy = e.clientY - start.py;
+    start.moved = Math.max(start.moved, Math.abs(dx) + Math.abs(dy));
+    s.x = start.x + dx; s.y = start.y + dy; place(s);
+  });
+  function release() {
+    if (!start) return;
+    el.classList.remove("held");
+    if (start.moved < 6) {
+      const toB = s.pile !== "B";
+      const t = toB ? B : A;
+      s.pile = toB ? "B" : "A";
+      s.x = t.x + r(-14, 14); s.y = t.y + r(-10, 10);
+    } else {
+      s.x = Math.min(Math.max(s.x, SW * 0.2), W - SW * 0.2);
+      s.y = Math.min(Math.max(s.y, SH * 0.2), H - SH * 0.2);
+      s.pile = Math.hypot(s.x - A.x, s.y - A.y) < Math.hypot(s.x - B.x, s.y - B.y) ? "A" : "B";
+    }
+    s.rot = r(-3, 3);
+    start = null; place(s);
+    el.classList.add("show"); clearTimeout(s.t); s.t = setTimeout(function () { el.classList.remove("show"); }, 1400);
+  }
+  el.addEventListener("pointerup", release);
+  el.addEventListener("pointercancel", release);
+  return s;
+}
+
+/* the frame: a 16 x 20 window laid over the table */
+function drawFrame() {
+  const fh = frame.w * 1.25, f = $("frame");
+  f.style.width = frame.w + "px"; f.style.height = fh + "px";
+  f.style.transform = "translate(" + (frame.x - frame.w / 2) + "px," + (frame.y - fh / 2) + "px)";
+}
+function showBars(id) {
+  ["nav", "framebar", "keptbar"].forEach(function (b) { $(b).style.display = b === id ? "flex" : "none"; });
+  $("dot").style.display = id === "nav" ? "flex" : "none";
+}
+function startFrame() {
+  framing = true;
+  if (!frame.w) { frame.w = Math.min(SH * 0.75, W * 0.8); frame.x = C.x; frame.y = C.y; }
+  $("frame").style.display = "block"; drawFrame(); showBars("framebar");
+}
+function endFrame() { framing = false; $("frame").style.display = "none"; showBars("nav"); }
+let fd = null;
+$("frame").addEventListener("pointerdown", function (e) { $("frame").setPointerCapture(e.pointerId); fd = { px: e.clientX, py: e.clientY, x: frame.x, y: frame.y }; });
+$("frame").addEventListener("pointermove", function (e) { if (!fd) return; frame.x = fd.x + e.clientX - fd.px; frame.y = fd.y + e.clientY - fd.py; drawFrame(); });
+$("frame").addEventListener("pointerup", function () { fd = null; });
+$("smaller").addEventListener("click", function () { frame.w = Math.max(SH * 0.25, frame.w * 0.9); drawFrame(); });
+$("larger").addEventListener("click", function () { frame.w = Math.min(SH * 2, frame.w * 1.1); drawFrame(); });
+$("cancel").addEventListener("click", endFrame);
+
+/* the arrangement becomes a code: everything measured in sheet heights from the frame's center */
+function encode() {
+  const order = sheets.slice().sort(function (a, b) { return a.z - b.z; });
+  const d = { a: dir, f: +(frame.w / SH).toFixed(4), s: order.map(function (s) {
+    return [sheets.indexOf(s), +((s.x - frame.x) / SH).toFixed(4), +((s.y - frame.y) / SH).toFixed(4), +s.rot.toFixed(2)];
+  }) };
+  return btoa(JSON.stringify(d)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decode(c) {
+  c = c.replace(/-/g, "+").replace(/_/g, "/");
+  while (c.length % 4) c += "=";
+  return JSON.parse(atob(c));
+}
+$("keep").addEventListener("click", function () {
+  link = location.origin + location.pathname + "?c=" + encode();
+  framing = false; $("frame").style.display = "none"; showBars("keptbar");
+});
+$("copy").addEventListener("click", function () {
+  try { navigator.clipboard.writeText(link).then(function () { $("copy").textContent = "copied"; }); } catch (e) {}
+  setTimeout(function () { $("copy").textContent = "copy link"; }, 1800);
+});
+$("close").addEventListener("click", function () { showBars("nav"); });
+$("dot").addEventListener("click", startFrame);
+
+/* opening a code: the composition rebuilt as the print */
+let printData = null;
+function layoutPrint() {
+  const d = printData, p = $("print");
+  const fhPx = Math.min(H * 0.78, W * 0.86 * 1.25), fwPx = fhPx / 1.25, unit = fwPx / d.f;
+  p.style.width = fwPx + "px"; p.style.height = fhPx + "px";
+  p.style.left = (W - fwPx) / 2 + "px"; p.style.top = (H - fhPx) / 2 + "px";
+  d.s.forEach(function (it, k) {
+    const s = sheets[k];
+    const w = unit * 0.6, h = unit;
+    s.el.style.width = w + "px"; s.el.style.height = h + "px";
+    s.el.style.transform = "translate(" + (fwPx / 2 + it[1] * unit - w / 2) + "px," + (fhPx / 2 + it[2] * unit - h / 2) + "px) rotate(" + it[3] + "deg)";
+    s.el.style.zIndex = k + 1;
+  });
+}
+function showPrint(d) {
+  printData = d;
+  $("nav").style.display = "none"; $("dot").style.display = "none"; $("gather").style.display = "none";
+  $("print").style.display = "block"; $("printbar").style.display = "flex";
+  d.s.forEach(function (it) { add(pages[it[0]], $("print")); });
+  $("printlabel").textContent = "16 x 20, " + label(pages[0] || {});
+  layoutPrint();
+  addEventListener("resize", function () { W = innerWidth; H = innerHeight; layoutPrint(); });
+}
+$("file").addEventListener("click", function () {
+  const d = printData, PW = 4800, PH = 6000, unit = PW / d.f;
+  const cv = document.createElement("canvas"); cv.width = PW; cv.height = PH;
+  const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, PW, PH);
+  d.s.forEach(function (it, k) {
+    const img = sheets[k].el.querySelector("img");
+    g.save(); g.translate(PW / 2 + it[1] * unit, PH / 2 + it[2] * unit); g.rotate(it[3] * Math.PI / 180);
+    g.drawImage(img, -unit * 0.3, -unit / 2, unit * 0.6, unit); g.restore();
+  });
+  cv.toBlob(function (b) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+    a.download = "frontpage-16x20-" + (d.a || "today") + ".png"; a.click();
+  }, "image/png");
+});
+
+const code = new URLSearchParams(location.search).get("c");
+let wanted = null;
+try { if (code) wanted = decode(code); } catch (e) { wanted = null; }
+if (wanted && wanted.a) dir = wanted.a;
+fetch((dir ? BASE + "archive/" + dir + "/" : BASE) + "meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
+  pages = m.pages || [{ file: "front.jpg", name: m.name, iso: m.iso, time: m.time }];
+  if (!dir && m.archive) dir = m.archive;
+  measure();
+  if (wanted) { showPrint(wanted); return; }
+  pages.forEach(function (pg) { add(pg); });
+  gather(); showBars("nav");
+});
+addEventListener("resize", function () { if (printData) return; measure(); moveAll(C, "C"); if (framing) drawFrame(); });
+$("gather").addEventListener("click", gather);
+$("left").addEventListener("click", function () { moveAll(A, "A"); });
+$("center").addEventListener("click", function () { moveAll(C, "C"); });
+$("right").addEventListener("click", function () { moveAll(B, "B"); });
+}
+</script>
+</body>
+</html>

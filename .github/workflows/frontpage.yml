@@ -54,7 +54,8 @@ jobs:
             let n = 0;
             document.querySelectorAll("body *").forEach(e => {
               const cs = getComputedStyle(e);
-              if (cs.position === "fixed" || cs.position === "sticky") {
+              if (cs.position === "fixed") { e.style.setProperty("display", "none", "important"); n++; }
+              else if (cs.position === "sticky") {
                 const r = e.getBoundingClientRect();
                 if (r.width * r.height > 0.3 * area) { e.style.setProperty("display", "none", "important"); n++; }
               }
@@ -141,7 +142,22 @@ jobs:
               boxes = out
           for x0, y0, x1, y1 in boxes:
               draw.rectangle([x0 - 4, y0 - 3, x1 + 4, y1 + 3], fill=(255, 255, 255))
-          import pytesseract
+          import pytesseract, numpy as np
+          from PIL import ImageOps
+          def wordy(c):
+              found = []
+              for img in (c, ImageOps.invert(c.convert("L"))):
+                  big = img.resize((img.width * 2, img.height * 2))
+                  d = pytesseract.image_to_data(big, output_type=pytesseract.Output.DICT)
+                  found += [t for t, cf in zip(d["text"], d["conf"]) if sum(ch.isalpha() for ch in t) >= 3 and float(cf) >= 55]
+              return found
+          def graphic(c):
+              # a large field of one strong flat color reads as a logo or a promotion, not a photograph
+              hsv = np.asarray(c.convert("HSV")).astype(int)
+              sat = hsv[..., 1] > 140
+              q = (hsv[..., 0] // 12) * 100 + (hsv[..., 2] // 32)
+              vals, counts = np.unique(q[sat], return_counts=True)
+              return len(counts) > 0 and counts.max() / q.size > 0.3
           removed = 0
           for x, y, w, h in photos:
               x0, y0 = max(0, int(x)), max(0, int(y))
@@ -149,10 +165,7 @@ jobs:
               if x1 - x0 < 40 or y1 - y0 < 40:
                   continue
               c = im.crop((x0, y0, x1, y1))
-              c = c.resize((c.width * 2, c.height * 2))
-              d = pytesseract.image_to_data(c, output_type=pytesseract.Output.DICT)
-              words = [t for t, cf in zip(d["text"], d["conf"]) if len(t.strip()) >= 3 and any(ch.isalpha() for ch in t) and float(cf) >= 60]
-              if len(words) >= 2:
+              if wordy(c) or graphic(c):
                   # a picture carrying words, a logo or an advertisement is left out
                   draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 255))
                   removed += 1

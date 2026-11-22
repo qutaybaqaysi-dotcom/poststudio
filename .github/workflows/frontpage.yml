@@ -72,80 +72,37 @@ jobs:
             return n;
           }
           """
-          SITES = ["https://www.nytimes.com/", "https://apnews.com/", "https://www.reuters.com/", "https://www.bbc.com/news", "https://en.wikipedia.org/wiki/Main_Page"]
-          saved = None
-          with sync_playwright() as p:
-              b = p.chromium.launch()
-              for url in SITES:
-                  pg = b.new_page(viewport={"width": 1440, "height": 2400},
-                                  user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-                  try:
-                      pg.goto(url, wait_until="domcontentloaded", timeout=60000)
-                      pg.wait_for_timeout(6000)
-                      pg.mouse.wheel(0, 2400)
-                      pg.wait_for_timeout(2500)
-                      pg.evaluate("window.scrollTo(0, 0)")
-                      pg.wait_for_timeout(2500)
-                      pg.add_style_tag(content=HIDE)
-                      print("overlays removed:", pg.evaluate(OVERLAYS))
-                      pg.wait_for_timeout(800)
-                      res = pg.evaluate(REDACT)
-                      lines, photos = len(res["lines"]), res["photos"]
-                  except Exception as e:
-                      print(url, "failed:", e)
-                      pg.close()
-                      continue
-                  print(url, "| title:", pg.title(), "| redacted lines:", lines)
-                  if lines >= 60:
-                      pg.evaluate(OVERLAYS)
-                      pg.wait_for_timeout(300)
-                      pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
-                      saved = url
-                      pg.close()
-                      break
-                  pg.close()
-              b.close()
-          if not saved:
-              sys.exit("No site let the browser through; nothing was saved.")
-          print("saved from", saved)
+
           import json, datetime, zoneinfo
-          NAMES = {"https://www.nytimes.com/": "The New York Times", "https://apnews.com/": "Associated Press", "https://www.reuters.com/": "Reuters", "https://www.bbc.com/news": "BBC News", "https://en.wikipedia.org/wiki/Main_Page": "Wikipedia"}
-          now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
-          with open("frontpage/meta.json", "w") as f:
-              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M"), "iso": now.strftime("%Y-%m-%d")}, f)
-          from PIL import ImageDraw
-          im = Image.open("/tmp/front.png").convert("RGB")
-          draw = ImageDraw.Draw(im)
-          # merge the lines of text into blocks, one black block per story, menu row or caption
-          boxes = [[x, y, x + w, y + h] for x, y, w, h in res["lines"] + res["marks"] + res["blocks"] if w > 0 and h > 0]
-          PX, PY = 22, 24
-          PH = [[x, y, x + w, y + h] for x, y, w, h in photos]
-          def hits(bx):
-              # does this block cover a real part of a photograph
-              for p in PH:
-                  ix = min(bx[2], p[2]) - max(bx[0], p[0])
-                  iy = min(bx[3], p[3]) - max(bx[1], p[1])
-                  if ix > 0 and iy > 0 and ix * iy > 0.1 * (p[2] - p[0]) * (p[3] - p[1]):
-                      return True
-              return False
-          merged = True
-          while merged:
-              merged = False
-              out = []
-              for bx in boxes:
-                  for o in out:
-                      u = [min(o[0], bx[0]), min(o[1], bx[1]), max(o[2], bx[2]), max(o[3], bx[3])]
-                      if bx[0] - PX < o[2] and o[0] - PX < bx[2] and bx[1] - PY < o[3] and o[1] - PY < bx[3] and (not hits(u) or hits(o) or hits(bx)):
-                          o[0], o[1], o[2], o[3] = min(o[0], bx[0]), min(o[1], bx[1]), max(o[2], bx[2]), max(o[3], bx[3])
-                          merged = True
-                          break
-                  else:
-                      out.append(list(bx))
-              boxes = out
-          for x0, y0, x1, y1 in boxes:
-              draw.rectangle([x0 - 4, y0 - 3, x1 + 4, y1 + 3], fill=(255, 255, 255))
           import pytesseract, numpy as np
-          from PIL import ImageOps
+          from PIL import ImageDraw, ImageOps
+          UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          def capture(b, url, need, shot):
+              pg = b.new_page(viewport={"width": 1440, "height": 2400}, user_agent=UA)
+              try:
+                  pg.goto(url, wait_until="domcontentloaded", timeout=60000)
+                  pg.wait_for_timeout(6000)
+                  pg.mouse.wheel(0, 2400)
+                  pg.wait_for_timeout(2500)
+                  pg.evaluate("window.scrollTo(0, 0)")
+                  pg.wait_for_timeout(2500)
+                  pg.add_style_tag(content=HIDE)
+                  pg.evaluate(OVERLAYS)
+                  pg.wait_for_timeout(800)
+                  res = pg.evaluate(REDACT)
+                  print(url, "| title:", pg.title(), "| lines:", len(res["lines"]), "| photos:", len(res["photos"]))
+                  if len(res["lines"]) < need:
+                      pg.close()
+                      return None
+                  pg.evaluate(OVERLAYS)
+                  pg.wait_for_timeout(300)
+                  pg.screenshot(path=shot, clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
+                  pg.close()
+                  return res
+              except Exception as e:
+                  print(url, "failed:", e)
+                  pg.close()
+                  return None
           def wordy(c):
               found = []
               for img in (c, ImageOps.invert(c.convert("L"))):
@@ -165,22 +122,84 @@ jobs:
               cq = (np.asarray(c) // 24).reshape(-1, 3)
               _, cc = np.unique(cq, axis=0, return_counts=True)
               return vivid > 0.05 and cc.max() / len(cq) > 0.2
-          removed = 0
-          for x, y, w, h in photos:
-              x0, y0 = max(0, int(x)), max(0, int(y))
-              x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
-              if x1 - x0 < 40 or y1 - y0 < 40:
-                  continue
-              c = im.crop((x0, y0, x1, y1))
-              if wordy(c) or graphic(c):
-                  # a picture carrying words, a logo or an advertisement is left out
-                  draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 255))
-                  removed += 1
-          print("pictures with words removed:", removed)
-          print("photos:", len(photos), "| text blocks:", len(boxes))
-          im.save("frontpage/front.jpg", quality=82, optimize=True)
+          def process(res, shot, out_path):
+              photos = res["photos"]
+              im = Image.open(shot).convert("RGB")
+              draw = ImageDraw.Draw(im)
+              # merge the lines of text into blocks, one block per story, menu row or caption
+              boxes = [[x, y, x + w, y + h] for x, y, w, h in res["lines"] + res["marks"] + res["blocks"] if w > 0 and h > 0]
+              PX, PY = 22, 24
+              PH = [[x, y, x + w, y + h] for x, y, w, h in photos]
+              def hits(bx):
+                  for p in PH:
+                      ix = min(bx[2], p[2]) - max(bx[0], p[0])
+                      iy = min(bx[3], p[3]) - max(bx[1], p[1])
+                      if ix > 0 and iy > 0 and ix * iy > 0.1 * (p[2] - p[0]) * (p[3] - p[1]):
+                          return True
+                  return False
+              merged = True
+              while merged:
+                  merged = False
+                  out = []
+                  for bx in boxes:
+                      for o in out:
+                          u = [min(o[0], bx[0]), min(o[1], bx[1]), max(o[2], bx[2]), max(o[3], bx[3])]
+                          if bx[0] - PX < o[2] and o[0] - PX < bx[2] and bx[1] - PY < o[3] and o[1] - PY < bx[3] and (not hits(u) or hits(o) or hits(bx)):
+                              o[0], o[1], o[2], o[3] = u
+                              merged = True
+                              break
+                      else:
+                          out.append(list(bx))
+                  boxes = out
+              for x0, y0, x1, y1 in boxes:
+                  draw.rectangle([x0 - 4, y0 - 3, x1 + 4, y1 + 3], fill=(255, 255, 255))
+              removed = 0
+              for x, y, w, h in photos:
+                  x0, y0 = max(0, int(x)), max(0, int(y))
+                  x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
+                  if x1 - x0 < 40 or y1 - y0 < 40:
+                      continue
+                  c = im.crop((x0, y0, x1, y1))
+                  if wordy(c) or graphic(c):
+                      # a picture carrying words, a logo or an advertisement is left out
+                      draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 255))
+                      removed += 1
+              print(out_path, "| text blocks:", len(boxes), "| pictures removed:", removed)
+              im.save(out_path, quality=82, optimize=True)
+          NEWS = [("https://www.nytimes.com/", "The New York Times"), ("https://apnews.com/", "Associated Press"), ("https://www.reuters.com/", "Reuters"), ("https://www.bbc.com/news", "BBC News"), ("https://en.wikipedia.org/wiki/Main_Page", "Wikipedia")]
+          OTHERS = [("https://www.ralphlauren.com/", "Ralph Lauren", "frontpage/front2.jpg")]
+          try:
+              meta = json.load(open("frontpage/meta.json"))
+          except Exception:
+              meta = {}
+          pages = meta.get("pages") or [{"file": "front.jpg", "name": meta.get("name", ""), "url": meta.get("url", ""), "iso": meta.get("iso", ""), "time": meta.get("time", "")}]
+          def stamp(entry, url, name):
+              now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
+              entry.update({"name": name, "url": url, "iso": now.strftime("%Y-%m-%d"), "time": now.strftime("%H%M")})
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              for url, name in NEWS:
+                  res = capture(b, url, 60, "/tmp/front.png")
+                  if res:
+                      process(res, "/tmp/front.png", "frontpage/front.jpg")
+                      stamp(pages[0], url, name)
+                      break
+              for i, (url, name, path) in enumerate(OTHERS, start=1):
+                  res = capture(b, url, 20, "/tmp/other.png")
+                  if res:
+                      process(res, "/tmp/other.png", path)
+                      while len(pages) <= i:
+                          pages.append({"file": path.split("/")[-1]})
+                      pages[i]["file"] = path.split("/")[-1]
+                      stamp(pages[i], url, name)
+              b.close()
+          first = pages[0]
+          meta = {"name": first.get("name", ""), "url": first.get("url", ""), "iso": first.get("iso", ""), "time": first.get("time", ""), "pages": pages}
+          with open("frontpage/meta.json", "w") as f:
+              json.dump(meta, f)
+          print(json.dumps(meta))
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Update front page
-          file_pattern: frontpage/front.jpg frontpage/meta.json
+          file_pattern: frontpage/*.jpg frontpage/meta.json

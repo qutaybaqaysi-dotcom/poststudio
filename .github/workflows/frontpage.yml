@@ -157,7 +157,12 @@ jobs:
               sat = hsv[..., 1] > 140
               q = (hsv[..., 0] // 12) * 100 + (hsv[..., 2] // 32)
               vals, counts = np.unique(q[sat], return_counts=True)
-              return len(counts) > 0 and counts.max() / q.size > 0.3
+              if len(counts) > 0 and counts.max() / q.size > 0.3:
+                  return True
+              vivid = ((hsv[..., 1] > 200) & (hsv[..., 2] > 170)).mean()
+              cq = (np.asarray(c) // 24).reshape(-1, 3)
+              _, cc = np.unique(cq, axis=0, return_counts=True)
+              return vivid > 0.05 and cc.max() / len(cq) > 0.2
           removed = 0
           for x, y, w, h in photos:
               x0, y0 = max(0, int(x)), max(0, int(y))

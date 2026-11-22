@@ -28,41 +28,43 @@ jobs:
           """
           REDACT = r"""
           () => {
+            const bb = (e) => { try { const r = e.getBoundingClientRect(); return (r && typeof r.width === "number") ? r : {left:0, top:0, width:0, height:0}; } catch (x) { return {left:0, top:0, width:0, height:0}; } };
             const sx = window.scrollX, sy = window.scrollY;
             const R = (r) => [r.left + sx, r.top + sy, r.width, r.height];
             const lines = [], photos = [], marks = [], blocks = [];
-            document.querySelectorAll("img, video").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); });
+            document.querySelectorAll("img, video").forEach(e => { const r = bb(e); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); });
             document.querySelectorAll("body *").forEach(e => {
               const bg = getComputedStyle(e).backgroundImage;
-              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) { const r = e.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); }
+              if (bg && bg !== "none" && bg.indexOf("url(") >= 0) { const r = bb(e); if (r.width >= 40 && r.height >= 40) photos.push(R(r)); }
             });
-            document.querySelectorAll("svg, canvas").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2) marks.push(R(r)); });
-            document.querySelectorAll("iframe, object, embed").forEach(e => { const r = e.getBoundingClientRect(); if (r.width >= 2 && r.height >= 2 && r.width <= 1100 && r.height <= 700) blocks.push(R(r)); });
+            document.querySelectorAll("svg, canvas").forEach(e => { const r = bb(e); if (r.width >= 2 && r.height >= 2) marks.push(R(r)); });
+            document.querySelectorAll("iframe, object, embed").forEach(e => { const r = bb(e); if (r.width >= 2 && r.height >= 2 && r.width <= 1100 && r.height <= 700) blocks.push(R(r)); });
             const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let n;
             while ((n = walk.nextNode())) {
               if (!n.textContent.trim()) continue;
               const rg = document.createRange();
               rg.selectNodeContents(n);
-              for (const r of rg.getClientRects()) { if (r.width >= 1 && r.height >= 2) lines.push(R(r)); }
+              for (const r of Array.from(rg.getClientRects() || [])) { if (r && r.width >= 1 && r.height >= 2) lines.push(R(r)); }
             }
             return {lines: lines, photos: photos, marks: marks, blocks: blocks};
           }
           """
           OVERLAYS = r"""
           () => {
+            const bb = (e) => { try { const r = e.getBoundingClientRect(); return (r && typeof r.width === "number") ? r : {left:0, top:0, width:0, height:0}; } catch (x) { return {left:0, top:0, width:0, height:0}; } };
             const vw = innerWidth, area = vw * 1200;
             let n = 0;
             document.querySelectorAll("body *").forEach(e => {
-              const cs = getComputedStyle(e);
+              const cs = getComputedStyle(e) || {};
               if (cs.position === "fixed") { e.style.setProperty("display", "none", "important"); n++; }
               else if (cs.position === "sticky") {
-                const r = e.getBoundingClientRect();
+                const r = bb(e);
                 if (r.width * r.height > 0.3 * area) { e.style.setProperty("display", "none", "important"); n++; }
               }
             });
             document.querySelectorAll("iframe").forEach(e => {
-              const r = e.getBoundingClientRect();
+              const r = bb(e);
               if (r.width > vw * 0.8 && r.height > 600) { e.style.setProperty("display", "none", "important"); n++; }
             });
             [document.documentElement, document.body].forEach(el => {

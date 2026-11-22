@@ -5,28 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title></title>
 <style>
-html, body { margin: 0; height: 100%; background: #fff; }
-body { display: flex; flex-direction: column; }
+html, body { margin: 0; background: #fff; }
+section { height: 100vh; height: 100svh; display: flex; flex-direction: column; box-sizing: border-box; }
 header { flex: none; width: 100%; max-width: 1440px; margin: 0 auto; padding: 28px 24px 20px; box-sizing: border-box;
   font-family: Helvetica, Arial, sans-serif; color: #c4c4c4; font-size: 14px; line-height: 1.6; }
-header a { color: #8c8c8c; text-decoration: none; border-bottom: 1px solid #444; }
-header a:hover { color: #c8c8c8; }
 img { display: block; flex: 1 1 auto; min-height: 0; width: 100%; object-fit: contain; object-position: center top; padding-bottom: 24px; box-sizing: border-box; }
 </style>
 </head>
 <body>
-<header>
-<div id="when"></div>
-</header>
-<img alt="" src="front.jpg">
 <script>
-document.querySelector("img").src = "front.jpg?" + Date.now();
+function show(pages) {
+  pages.forEach(function (pg) {
+    var s = document.createElement("section");
+    var h = document.createElement("header");
+    h.textContent = (pg.iso || "") + (pg.time ? " - " + pg.time : "");
+    var im = document.createElement("img");
+    im.alt = "";
+    im.src = pg.file + "?" + Date.now();
+    s.appendChild(h); s.appendChild(im);
+    document.body.appendChild(s);
+  });
+  document.title = pages.map(function (pg) { return pg.name; }).join(" / ");
+}
 fetch("meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
-  var iso = m.iso;
-  if (!iso) { var d = new Date(m.date.replace(/^(\w+) (\d+) (\d+)$/, "$1 $2, $3")); iso = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
-  document.getElementById("when").textContent = iso + (m.time ? " - " + m.time : "");
-  document.title = m.name;
-}).catch(function () {});
+  show(m.pages || [{ file: "front.jpg", name: m.name, iso: m.iso, time: m.time }]);
+}).catch(function () { show([{ file: "front.jpg", name: "" }]); });
 </script>
 </body>
 </html>

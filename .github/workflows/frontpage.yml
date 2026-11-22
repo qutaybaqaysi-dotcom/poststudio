@@ -133,26 +133,32 @@ jobs:
                   top.append((px, c - t / 2 + random.uniform(-0.9, 0.9)))
                   bot.append((px, c + t / 2 + random.uniform(-0.9, 0.9)))
               draw.polygon(top + bot[::-1], fill=K)
-          def eyebar(x, y, w, h):
-              # a short uneven bar across the eyes
-              bx0 = x - w * random.uniform(0.05, 0.15)
-              bx1 = x + w * (1 + random.uniform(0.05, 0.15))
-              cy = y + h * random.uniform(0.38, 0.45)
-              t = h * random.uniform(0.2, 0.28)
-              tilt = random.uniform(-0.08, 0.08) * (bx1 - bx0)
-              top, bot = [], []
-              for i in range(9):
-                  px = bx0 + (bx1 - bx0) * i / 8
-                  c = cy + tilt * (i / 8 - 0.5)
-                  top.append((px, c - t / 2 + random.uniform(-2, 2)))
-                  bot.append((px, c + t / 2 + random.uniform(-2, 2)))
-              draw.polygon(top + bot[::-1], fill=K)
+          from PIL import ImageFilter
+          paint = Image.new("L", im.size, 0)
+          pdraw = ImageDraw.Draw(paint)
+          def brush(x0, y0, x1, y1, width):
+              # a crude, soft marker stroke
+              pts = []
+              for i in range(7):
+                  t = i / 6
+                  pts.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + random.uniform(-0.12, 0.12) * width))
+              for i in range(len(pts) - 1):
+                  w = width * random.uniform(0.8, 1.15)
+                  pdraw.line([pts[i], pts[i + 1]], fill=255, width=max(1, int(w)))
+                  r = w / 2
+                  pdraw.ellipse([pts[i][0] - r, pts[i][1] - r, pts[i][0] + r, pts[i][1] + r], fill=255)
+              r = width * 0.45
+              pdraw.ellipse([pts[-1][0] - r, pts[-1][1] - r, pts[-1][0] + r, pts[-1][1] + r], fill=255)
           for x, y, w, h in res["lines"]:
               stroke(x, y, w, h, 0.43)
           for x, y, w, h in res["marks"]:
               stroke(x, y, w, h, 0.36, 0.5)
+          for x, y, w, h in res["lines"]:
+              if w > 80 and h > 14 and random.random() < 0.06:
+                  brush(x - random.uniform(0, 20), y + h * 0.55, x + w * random.uniform(0.4, 0.9), y + h * random.uniform(0.45, 0.65), h * random.uniform(1.1, 1.6))
           for x, y, w, h in res["blocks"]:
-              stroke(x, y, w, h, 0.16, 0.5)
+              for k in range(random.randint(1, 2)):
+                  brush(x - 0.05 * w, y + h * random.uniform(0.3, 0.7), x + w * random.uniform(0.6, 1.05), y + h * random.uniform(0.3, 0.7), h * random.uniform(0.25, 0.45))
           gray = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2GRAY)
           front = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
           prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
@@ -171,8 +177,17 @@ jobs:
                   if any(abs(box[0] - b[0]) < 0.5 * fw and abs(box[1] - b[1]) < 0.5 * fh for b in faces):
                       continue
                   faces.append(box)
+          for x, y, w, h in photos:
+              if w * h > 20000 and random.random() < 0.7:
+                  brush(x - 0.05 * w, y + h * random.uniform(0.35, 0.7), x + w * random.uniform(0.75, 1.05), y + h * random.uniform(0.35, 0.7), h * random.uniform(0.22, 0.38))
           for fx, fy, fw, fh in faces:
-              eyebar(fx, fy, fw, fh)
+              brush(fx - fw * random.uniform(0.3, 0.6), fy + fh * random.uniform(0.35, 0.5), fx + fw * random.uniform(1.3, 1.6), fy + fh * random.uniform(0.3, 0.5), fh * random.uniform(0.5, 0.7))
+          m = np.asarray(paint.filter(ImageFilter.GaussianBlur(5))).astype(np.float32) / 255
+          hh, ww = m.shape
+          grain = np.random.rand(hh // 6 + 1, 1).repeat(6, 0)[:hh] * np.ones((1, ww))
+          grain = np.asarray(Image.fromarray((grain * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255
+          m = np.clip(m * 1.2, 0, 1) * (0.9 + 0.1 * grain)
+          im = Image.fromarray((np.asarray(im).astype(np.float32) * (1 - m[..., None])).astype(np.uint8))
           print("photos:", len(photos), "| faces covered:", len(faces))
           im.convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY

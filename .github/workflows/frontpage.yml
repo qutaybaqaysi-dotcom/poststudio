@@ -209,6 +209,19 @@ jobs:
               b.close()
           first = pages[0]
           meta = {"name": first.get("name", ""), "url": first.get("url", ""), "iso": first.get("iso", ""), "time": first.get("time", ""), "pages": pages}
+          # keep each day's cut sheets in the archive, so a kept arrangement can be rebuilt later
+          import os, shutil
+          arch = (first.get("iso", "") + "-" + first.get("time", "")).strip("-")
+          if arch:
+              ad = "frontpage/archive/" + arch
+              os.makedirs(ad, exist_ok=True)
+              for pg in pages:
+                  cut = "frontpage/" + pg.get("file", "").replace(".jpg", "_cut.webp")
+                  if os.path.exists(cut):
+                      shutil.copy(cut, ad)
+              meta["archive"] = arch
+              with open(ad + "/meta.json", "w") as f:
+                  json.dump(meta, f)
           with open("frontpage/meta.json", "w") as f:
               json.dump(meta, f)
           print(json.dumps(meta))
@@ -216,4 +229,4 @@ jobs:
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Update front page
-          file_pattern: frontpage/*.jpg frontpage/*.webp frontpage/meta.json
+          file_pattern: frontpage/*.jpg frontpage/*.webp frontpage/meta.json frontpage/archive

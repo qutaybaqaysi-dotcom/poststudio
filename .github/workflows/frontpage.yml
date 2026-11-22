@@ -115,13 +115,23 @@ jobs:
           # merge the lines of text into blocks, one black block per story, menu row or caption
           boxes = [[x, y, x + w, y + h] for x, y, w, h in res["lines"] + res["marks"] + res["blocks"] if w > 0 and h > 0]
           PX, PY = 22, 24
+          PH = [[x, y, x + w, y + h] for x, y, w, h in photos]
+          def hits(bx):
+              # does this block cover a real part of a photograph
+              for p in PH:
+                  ix = min(bx[2], p[2]) - max(bx[0], p[0])
+                  iy = min(bx[3], p[3]) - max(bx[1], p[1])
+                  if ix > 0 and iy > 0 and ix * iy > 0.1 * (p[2] - p[0]) * (p[3] - p[1]):
+                      return True
+              return False
           merged = True
           while merged:
               merged = False
               out = []
               for bx in boxes:
                   for o in out:
-                      if bx[0] - PX < o[2] and o[0] - PX < bx[2] and bx[1] - PY < o[3] and o[1] - PY < bx[3]:
+                      u = [min(o[0], bx[0]), min(o[1], bx[1]), max(o[2], bx[2]), max(o[3], bx[3])]
+                      if bx[0] - PX < o[2] and o[0] - PX < bx[2] and bx[1] - PY < o[3] and o[1] - PY < bx[3] and (not hits(u) or hits(o) or hits(bx)):
                           o[0], o[1], o[2], o[3] = min(o[0], bx[0]), min(o[1], bx[1]), max(o[2], bx[2]), max(o[3], bx[3])
                           merged = True
                           break

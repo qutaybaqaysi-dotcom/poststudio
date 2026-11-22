@@ -24,6 +24,7 @@ jobs:
           from PIL import Image
           HIDE = """
           *, *::before, *::after { animation: none !important; transition: none !important; }
+          a, button { border-color: transparent !important; box-shadow: none !important; outline: none !important; background-color: transparent !important; }
           """
           REDACT = r"""
           () => {
@@ -96,6 +97,7 @@ jobs:
                       continue
                   print(url, "| title:", pg.title(), "| redacted lines:", lines)
                   if lines >= 60:
+                      pg.evaluate(OVERLAYS)
                       pg.wait_for_timeout(300)
                       pg.screenshot(path="/tmp/front.png", clip={"x": 0, "y": 0, "width": 1440, "height": 2400})
                       saved = url

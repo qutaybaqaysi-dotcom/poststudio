@@ -13,7 +13,9 @@ button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke
 button:hover { color: #9a9a9a; }
 button:focus-visible { outline: 1px solid #c4c4c4; }
 .sheet { position: absolute; left: 0; top: 0; cursor: grab; will-change: transform; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.14)); transition: transform .75s cubic-bezier(.2,.7,.2,1); }
-.cap { position: absolute; left: 0; top: 0; padding: 10px 12px; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #a8a8a8; background: #fff; pointer-events: none; white-space: nowrap; }
+.cap { position: absolute; left: 0; top: 0; padding: 10px 12px; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #a8a8a8; background: #fff; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity .8s; }
+.sheet.held .cap, .sheet.show .cap { opacity: 1; transition: opacity .2s; }
+@media (hover: hover) { .sheet:hover .cap { opacity: 1; transition: opacity .2s; } }
 .sheet img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
 .sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
 @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
@@ -96,6 +98,7 @@ function add(src, label) {
     }
     s.rot = r(-3, 3);
     start = null; place(s);
+    el.classList.add("show"); clearTimeout(s.t); s.t = setTimeout(function () { el.classList.remove("show"); }, 1400);
   }
   el.addEventListener("pointerup", release);
   el.addEventListener("pointercancel", release);

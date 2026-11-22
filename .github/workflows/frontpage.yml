@@ -16,7 +16,8 @@ jobs:
       - name: Capture and redact the front page
         run: |
           sudo apt-get install -y tesseract-ocr > /dev/null
-          pip install --quiet playwright pillow pytesseract numpy
+          pip install --quiet playwright pillow pytesseract numpy "opencv-python-headless<5"
+          curl -sL -o /tmp/yunet.onnx https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
           python3 -m playwright install --with-deps chromium > /dev/null
           python3 - <<'PY'
           import sys
@@ -77,6 +78,12 @@ jobs:
 
           import json, datetime, zoneinfo
           import pytesseract, numpy as np
+          try:
+              import cv2
+              DET = cv2.FaceDetectorYN.create("/tmp/yunet.onnx", "", (320, 320), 0.6, 0.3, 5000)
+          except Exception as e:
+              print("no face detector:", e)
+              DET = None
           from PIL import ImageDraw, ImageOps
           UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
           def capture(b, url, need, shot):
@@ -176,6 +183,32 @@ jobs:
               cut = im.convert("RGBA")
               cut.putalpha(mask)
               cut.save(out_path.replace(".jpg", "_cut.webp"), quality=80)
+              # version 4: faces large enough to recognize, inside the remaining pictures, are blacked out
+              im4 = im.copy()
+              d4 = ImageDraw.Draw(im4)
+              nf = 0
+              for x, y, w, h in (photos if DET is not None else []):
+                  x0, y0 = max(0, int(x)), max(0, int(y))
+                  x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
+                  if x1 - x0 < 40 or y1 - y0 < 40 or mask.getpixel(((x0 + x1) // 2, (y0 + y1) // 2)) == 0:
+                      continue
+                  crop = np.asarray(im.crop((x0, y0, x1, y1)))[:, :, ::-1].copy()
+                  try:
+                      DET.setInputSize((x1 - x0, y1 - y0))
+                      _, faces = DET.detect(crop)
+                  except Exception:
+                      faces = None
+                  for fc in ([] if faces is None else faces):
+                      fx, fy, fw, fh = [float(v) for v in fc[:4]]
+                      if fw < 34:
+                          continue
+                      px, py = fw * 0.12, fh * 0.12
+                      d4.rectangle([x0 + fx - px, y0 + fy - py, x0 + fx + fw + px, y0 + fy + fh + py], fill=(0, 0, 0))
+                      nf += 1
+              print(out_path, "| faces blacked out:", nf)
+              cut4 = im4.convert("RGBA")
+              cut4.putalpha(mask)
+              cut4.save(out_path.replace(".jpg", "_cut_faces.webp"), quality=80)
           NEWS = [("https://www.nytimes.com/", "The New York Times"), ("https://apnews.com/", "Associated Press"), ("https://www.reuters.com/", "Reuters"), ("https://www.bbc.com/news", "BBC News"), ("https://en.wikipedia.org/wiki/Main_Page", "Wikipedia")]
           OTHERS = [("https://www.theguardian.com/international", "The Guardian", "frontpage/front2.jpg"), ("https://www.aljazeera.com/", "Al Jazeera", "frontpage/front3.jpg")]
           try:
@@ -216,9 +249,10 @@ jobs:
               ad = "frontpage/archive/" + arch
               os.makedirs(ad, exist_ok=True)
               for pg in pages:
-                  cut = "frontpage/" + pg.get("file", "").replace(".jpg", "_cut.webp")
-                  if os.path.exists(cut):
-                      shutil.copy(cut, ad)
+                  for suffix in ("_cut.webp", "_cut_faces.webp"):
+                      cut = "frontpage/" + pg.get("file", "").replace(".jpg", suffix)
+                      if os.path.exists(cut):
+                          shutil.copy(cut, ad)
               meta["archive"] = arch
               with open(ad + "/meta.json", "w") as f:
                   json.dump(meta, f)

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title></title>
 <style>
-html, body { margin: 0; height: 100%; overflow: hidden; background: #f2f2f2; touch-action: none; -webkit-user-select: none; user-select: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; touch-action: none; -webkit-user-select: none; user-select: none; }
 header { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 6px 22px 0; font: 14px/1.6 Helvetica, Arial, sans-serif; color: #c4c4c4; z-index: 100000; pointer-events: none; }
 nav, .bar { position: fixed; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; align-items: center; gap: 28px; z-index: 100000; pointer-events: none; font: 14px/1.6 Helvetica, Arial, sans-serif; color: #a8a8a8; }
 .bar { display: none; flex-wrap: wrap; gap: 8px 24px; padding: 0 16px; }
@@ -21,9 +21,9 @@ button:focus-visible { outline: 1px solid #c4c4c4; }
 .cap { position: absolute; left: 0; top: 0; padding: 10px 12px; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #a8a8a8; background: #fff; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity .8s; }
 .sheet.held .cap, .sheet.show .cap { opacity: 1; transition: opacity .2s; }
 @media (hover: hover) { .sheet:hover .cap { opacity: 1; transition: opacity .2s; } }
-.sheet img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+.sheet img { filter: brightness(.95); display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
 .sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
-#frame { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; box-shadow: 0 0 0 9999px rgba(242,242,242,.82); cursor: move; z-index: 90000; }
+#frame { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; box-shadow: 0 0 0 9999px rgba(255,255,255,.82); cursor: move; z-index: 90000; }
 #print { position: absolute; display: none; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 #print .sheet { cursor: default; transition: none; }
 .code { font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -143,7 +143,10 @@ function add(pg, parent) {
 
 /* the frame: a 16 x 20 window laid over the table */
 function drawFrame() {
+  const top = 8, bot = H - 52;
+  frame.w = Math.min(frame.w, (bot - top) / 1.25, W - 16);
   const fh = frame.w * 1.25, f = $("frame");
+  frame.y = Math.max(top + fh / 2, Math.min(bot - fh / 2, frame.y));
   f.style.width = frame.w + "px"; f.style.height = fh + "px";
   f.style.transform = "translate(" + (frame.x - frame.w / 2) + "px," + (frame.y - fh / 2) + "px)";
 }
@@ -213,12 +216,20 @@ function showPrint(d) {
   layoutPrint();
   addEventListener("resize", function () { W = innerWidth; H = innerHeight; layoutPrint(); });
 }
+/* the newspaper carries an overall 5% tone; the ground stays pure white, bare metal */
+function dim(img) {
+  const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height), a = d.data;
+  for (let i = 0; i < a.length; i += 4) { a[i] *= 0.95; a[i + 1] *= 0.95; a[i + 2] *= 0.95; }
+  x.putImageData(d, 0, 0); return c;
+}
 $("file").addEventListener("click", function () {
   const d = printData, PW = 4800, PH = 6000, unit = PW / d.f;
   const cv = document.createElement("canvas"); cv.width = PW; cv.height = PH;
   const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, PW, PH);
   d.s.forEach(function (it, k) {
-    const img = sheets[k].el.querySelector("img");
+    const img = dim(sheets[k].el.querySelector("img"));
     g.save(); g.translate(PW / 2 + it[1] * unit, PH / 2 + it[2] * unit); g.rotate(it[3] * Math.PI / 180);
     g.drawImage(img, -unit * 0.3, -unit / 2, unit * 0.6, unit); g.restore();
   });

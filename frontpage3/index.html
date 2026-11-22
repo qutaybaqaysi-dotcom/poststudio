@@ -164,7 +164,8 @@ function showBars(id) {
 let kept = false;
 function startFrame() {
   framing = true;
-  if (!frame.w) { frame.w = Math.min(SH * 0.75, W * 0.8); frame.x = C.x; frame.y = C.y; }
+  /* the frame opens whole, centered in the clear space above the controls */
+  if (!frame.w) { frame.w = Math.min(SH * 0.75, W * 0.8, (H - 60) / 1.25 * 0.9); frame.x = C.x; frame.y = (8 + H - 52) / 2; }
   $("frame").style.display = "block"; $("outline").style.display = kept ? "none" : "block"; drawFrame(); showBars("framebar");
 }
 function endFrame() { framing = false; $("frame").style.display = "none"; $("outline").style.display = "none"; showBars("nav"); }

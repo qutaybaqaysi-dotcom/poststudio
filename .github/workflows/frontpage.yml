@@ -80,7 +80,7 @@ jobs:
           import pytesseract, numpy as np
           try:
               import cv2
-              DET = cv2.FaceDetectorYN.create("/tmp/yunet.onnx", "", (320, 320), 0.6, 0.3, 5000)
+              DET = cv2.FaceDetectorYN.create("/tmp/yunet.onnx", "", (320, 320), 0.5, 0.3, 5000)
           except Exception as e:
               print("no face detector:", e)
               DET = None
@@ -120,6 +120,12 @@ jobs:
                   found += [t for t, cf in zip(d["text"], d["conf"]) if sum(ch.isalpha() for ch in t) >= 3 and float(cf) >= 55]
               return found
           def graphic(c):
+              # an illustration or icon is made of a few flat colors; a photograph needs many
+              fq = (np.asarray(c) // 16).reshape(-1, 3)
+              _, fc = np.unique(fq, axis=0, return_counts=True)
+              fc = np.sort(fc)[::-1]
+              if int(np.searchsorted(np.cumsum(fc) / fc.sum(), 0.6)) + 1 <= 5:
+                  return True
               # a large field of one strong flat color reads as a logo or a promotion, not a photograph
               hsv = np.asarray(c.convert("HSV")).astype(int)
               sat = hsv[..., 1] > 140
@@ -200,7 +206,7 @@ jobs:
                       faces = None
                   for fc in ([] if faces is None else faces):
                       fx, fy, fw, fh = [float(v) for v in fc[:4]]
-                      if fw < 34:
+                      if fw < 20:
                           continue
                       px, py = fw * 0.12, fh * 0.12
                       d4.rectangle([x0 + fx - px, y0 + fy - py, x0 + fx + fw + px, y0 + fy + fh + py], fill=(0, 0, 0))

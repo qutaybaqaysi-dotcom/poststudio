@@ -16,7 +16,7 @@ jobs:
       - name: Capture and redact the front page
         run: |
           sudo apt-get install -y tesseract-ocr > /dev/null
-          pip install --quiet playwright pillow pytesseract
+          pip install --quiet playwright pillow pytesseract numpy
           python3 -m playwright install --with-deps chromium > /dev/null
           python3 - <<'PY'
           import sys

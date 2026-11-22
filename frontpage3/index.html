@@ -24,6 +24,8 @@ button:focus-visible { outline: 1px solid #c4c4c4; }
 .sheet img { filter: brightness(.95); display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
 .sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
 #frame { position: absolute; left: 0; top: 0; display: none; border: 1px solid #b0b0b0; box-shadow: 0 0 0 9999px rgba(255,255,255,.82); cursor: move; z-index: 90000; }
+#frame.kept { box-shadow: 0 0 0 9999px #fff; border-color: #d8d8d8; cursor: grab; }
+body.sliding .sheet { transition: none; }
 #print { position: absolute; display: none; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 #print .sheet { cursor: default; transition: none; }
 .code { font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -153,7 +155,9 @@ function drawFrame() {
 function showBars(id) {
   ["nav", "framebar", "keptbar"].forEach(function (b) { $(b).style.display = b === id ? "flex" : "none"; });
   $("dot").style.display = id === "nav" ? "flex" : "none";
+  $("gather").style.visibility = id === "nav" ? "visible" : "hidden";
 }
+let kept = false;
 function startFrame() {
   framing = true;
   if (!frame.w) { frame.w = Math.min(SH * 0.75, W * 0.8); frame.x = C.x; frame.y = C.y; }
@@ -161,9 +165,21 @@ function startFrame() {
 }
 function endFrame() { framing = false; $("frame").style.display = "none"; showBars("nav"); }
 let fd = null;
-$("frame").addEventListener("pointerdown", function (e) { $("frame").setPointerCapture(e.pointerId); fd = { px: e.clientX, py: e.clientY, x: frame.x, y: frame.y }; });
-$("frame").addEventListener("pointermove", function (e) { if (!fd) return; frame.x = fd.x + e.clientX - fd.px; frame.y = fd.y + e.clientY - fd.py; drawFrame(); });
-$("frame").addEventListener("pointerup", function () { fd = null; });
+/* crop stage: the stack is locked and the frame moves; kept stage: the frame is fixed and the whole stack slides beneath it */
+$("frame").addEventListener("pointerdown", function (e) {
+  $("frame").setPointerCapture(e.pointerId);
+  fd = { px: e.clientX, py: e.clientY, x: frame.x, y: frame.y, s: sheets.map(function (s) { return [s.x, s.y]; }) };
+  if (kept) document.body.classList.add("sliding");
+});
+$("frame").addEventListener("pointermove", function (e) {
+  if (!fd) return;
+  const dx = e.clientX - fd.px, dy = e.clientY - fd.py;
+  if (kept) { sheets.forEach(function (s, k) { s.x = fd.s[k][0] + dx; s.y = fd.s[k][1] + dy; place(s); }); }
+  else { frame.x = fd.x + dx; frame.y = fd.y + dy; drawFrame(); }
+});
+function frameUp() { if (!fd) return; fd = null; document.body.classList.remove("sliding"); if (kept) link = location.origin + location.pathname + "?c=" + encode(); }
+$("frame").addEventListener("pointerup", frameUp);
+$("frame").addEventListener("pointercancel", frameUp);
 $("smaller").addEventListener("click", function () { frame.w = Math.max(SH * 0.25, frame.w * 0.9); drawFrame(); });
 $("larger").addEventListener("click", function () { frame.w = Math.min(SH * 2, frame.w * 1.1); drawFrame(); });
 $("cancel").addEventListener("click", endFrame);
@@ -183,13 +199,13 @@ function decode(c) {
 }
 $("keep").addEventListener("click", function () {
   link = location.origin + location.pathname + "?c=" + encode();
-  framing = false; $("frame").style.display = "none"; showBars("keptbar");
+  kept = true; $("frame").classList.add("kept"); showBars("keptbar");
 });
 $("copy").addEventListener("click", function () {
   try { navigator.clipboard.writeText(link).then(function () { $("copy").textContent = "copied"; }); } catch (e) {}
   setTimeout(function () { $("copy").textContent = "copy link"; }, 1800);
 });
-$("close").addEventListener("click", function () { showBars("nav"); });
+$("close").addEventListener("click", function () { kept = false; $("frame").classList.remove("kept"); endFrame(); });
 $("dot").addEventListener("click", startFrame);
 
 /* opening a code: the composition rebuilt as the print */
@@ -251,7 +267,7 @@ fetch((dir ? BASE + "archive/" + dir + "/" : BASE) + "meta.json?" + Date.now()).
   pages.forEach(function (pg) { add(pg); });
   gather(); showBars("nav");
 });
-addEventListener("resize", function () { if (printData) return; measure(); moveAll(C, "C"); if (framing) drawFrame(); });
+addEventListener("resize", function () { if (printData) return; measure(); if (framing) drawFrame(); else moveAll(C, "C"); });
 $("gather").addEventListener("click", gather);
 $("left").addEventListener("click", function () { moveAll(A, "A"); });
 $("center").addEventListener("click", function () { moveAll(C, "C"); });

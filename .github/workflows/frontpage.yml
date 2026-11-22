@@ -108,7 +108,7 @@ jobs:
           NAMES = {"https://www.nytimes.com/": "The New York Times", "https://apnews.com/": "Associated Press", "https://www.reuters.com/": "Reuters", "https://www.bbc.com/news": "BBC News", "https://en.wikipedia.org/wiki/Main_Page": "Wikipedia"}
           now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
           with open("frontpage/meta.json", "w") as f:
-              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M")}, f)
+              json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M"), "iso": now.strftime("%Y-%m-%d")}, f)
           from PIL import ImageDraw
           im = Image.open("/tmp/front.png").convert("RGB")
           draw = ImageDraw.Draw(im)
@@ -139,7 +139,7 @@ jobs:
                       out.append(list(bx))
               boxes = out
           for x0, y0, x1, y1 in boxes:
-              draw.rectangle([x0 - 4, y0 - 3, x1 + 4, y1 + 3], fill=(0, 0, 0))
+              draw.rectangle([x0 - 4, y0 - 3, x1 + 4, y1 + 3], fill=(255, 255, 255))
           print("photos:", len(photos), "| text blocks:", len(boxes))
           im.save("frontpage/front.jpg", quality=82, optimize=True)
           PY

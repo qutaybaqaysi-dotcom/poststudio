@@ -224,7 +224,7 @@ $("file").addEventListener("click", function () {
   });
   cv.toBlob(function (b) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-    a.download = "frontpage-16x20-" + (d.a || "today") + ".png"; a.click();
+    a.download = "frontpage-" + (d.a || "today") + "-16x20.png"; a.click();
   }, "image/png");
 });
 

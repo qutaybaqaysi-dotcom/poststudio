@@ -1,0 +1,102 @@
+name: paper test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Test which newspapers load
+        run: |
+          pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium > /dev/null
+          python3 - <<'PY'
+          import os
+          from playwright.sync_api import sync_playwright
+          PAPERS = [
+            ("New York Post", "https://nypost.com/"),
+            ("New York Daily News", "https://www.nydailynews.com/"),
+            ("amNewYork", "https://www.amny.com/"),
+            ("El Diario", "https://eldiariony.com/"),
+            ("Newsday", "https://www.newsday.com/"),
+            ("Washington Post", "https://www.washingtonpost.com/"),
+            ("Los Angeles Times", "https://www.latimes.com/"),
+            ("USA Today", "https://www.usatoday.com/"),
+            ("The Times", "https://www.thetimes.com/"),
+            ("Daily Mail", "https://www.dailymail.co.uk/home/index.html"),
+            ("Le Monde", "https://www.lemonde.fr/"),
+            ("Le Figaro", "https://www.lefigaro.fr/"),
+            ("Der Spiegel", "https://www.spiegel.de/"),
+            ("Sueddeutsche Zeitung", "https://www.sueddeutsche.de/"),
+            ("El Pais", "https://elpais.com/"),
+            ("Corriere della Sera", "https://www.corriere.it/"),
+            ("La Repubblica", "https://www.repubblica.it/"),
+            ("Hurriyet", "https://www.hurriyet.com.tr/"),
+            ("Kommersant", "https://www.kommersant.ru/"),
+            ("Novaya Gazeta Europe", "https://novayagazeta.eu/"),
+            ("Asharq Al-Awsat", "https://aawsat.com/"),
+            ("Al-Ahram", "https://gate.ahram.org.eg/"),
+            ("An-Nahar", "https://www.annahar.com/"),
+            ("Al Arabiya", "https://www.alarabiya.net/"),
+            ("Shafaq News", "https://shafaq.com/ar"),
+            ("Rudaw", "https://www.rudaw.net/arabic"),
+            ("Haaretz", "https://www.haaretz.co.il/"),
+            ("Hespress", "https://www.hespress.com/"),
+            ("Daily Nation", "https://nation.africa/kenya"),
+            ("Punch", "https://punchng.com/"),
+            ("Mail and Guardian", "https://mg.co.za/"),
+            ("Dawn", "https://www.dawn.com/"),
+            ("Times of India", "https://timesofindia.indiatimes.com/"),
+            ("Dainik Bhaskar", "https://www.bhaskar.com/"),
+            ("Asahi Shimbun", "https://www.asahi.com/"),
+            ("Chosun Ilbo", "https://www.chosun.com/"),
+            ("South China Morning Post", "https://www.scmp.com/"),
+            ("Folha de S.Paulo", "https://www.folha.uol.com.br/"),
+            ("Clarin", "https://www.clarin.com/"),
+            ("El Universal", "https://www.eluniversal.com.mx/"),
+          ]
+          COUNT = r"""
+          () => {
+            let lines = 0, photos = 0;
+            document.querySelectorAll("img").forEach(e => { try { const r = e.getBoundingClientRect(); if (r && r.width >= 40 && r.height >= 40 && r.top < 2400) photos++; } catch (x) {} });
+            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = walk.nextNode())) {
+              if (!n.textContent.trim()) continue;
+              const rg = document.createRange(); rg.selectNodeContents(n);
+              for (const r of Array.from(rg.getClientRects() || [])) { if (r && r.width >= 1 && r.height >= 2 && r.top < 2400) lines++; }
+            }
+            return [lines, photos];
+          }
+          """
+          BLOCK = ["denied", "just a moment", "attention required", "blocked", "robot", "captcha", "verify", "access", "forbidden", "403", "unavailable"]
+          UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          rows = []
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              for name, url in PAPERS:
+                  pg = b.new_page(viewport={"width": 1440, "height": 2400}, user_agent=UA)
+                  try:
+                      pg.goto(url, wait_until="domcontentloaded", timeout=30000)
+                      pg.wait_for_timeout(5000)
+                      pg.mouse.wheel(0, 2400)
+                      pg.wait_for_timeout(1500)
+                      pg.evaluate("window.scrollTo(0, 0)")
+                      pg.wait_for_timeout(1000)
+                      lines, photos = pg.evaluate(COUNT)
+                      title = (pg.title() or "").replace("|", "/")[:60]
+                      blocked = any(w in title.lower() for w in BLOCK)
+                      ok = "yes" if lines >= 60 and not blocked else "no"
+                  except Exception as e:
+                      lines, photos, title, ok = 0, 0, "error: " + str(e).split("\n")[0][:50], "no"
+                  pg.close()
+                  print(name, ok, lines, photos, title, flush=True)
+                  rows.append((name, ok, lines, photos, title))
+              b.close()
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("| paper | loads | text lines | pictures | page title |\n|---|---|---|---|---|\n")
+              for r in rows:
+                  f.write("| %s | %s | %d | %d | %s |\n" % r)
+          PY

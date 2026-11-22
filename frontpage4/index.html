@@ -32,10 +32,27 @@ body.sliding .sheet { transition: none; }
 #print .sheet { cursor: default; transition: none; }
 .code { font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+#rulespanel { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.86); z-index: 200000; padding: 24px; box-sizing: border-box; }
+#rulespanel ol { margin: 0; padding-left: 1.4em; max-width: 440px; font: 14px/1.75 Helvetica, Arial, sans-serif; color: #7a7a7a; }
+#rulespanel li { padding-left: .3em; margin-bottom: .45em; }
+#rulespanel p { margin: 1.4em 0 0 1.7em; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #b4b4b4; }
 </style>
 </head>
 <body>
-<header><span id="stamp"></span><button id="gather" type="button">gather</button></header>
+<header><span id="stamp"></span><span style="display:flex;gap:14px"><button id="rules" type="button">rules</button><button id="gather" type="button">gather</button></span></header>
+<div id="rulespanel"><div>
+<ol>
+<li>Each morning at 6:41 New York time, the front pages of selected newspapers are captured.</li>
+<li>A code removes the text and keeps the lines, the colors and parts of the pictures.</li>
+<li>The day's pages are stacked here until the next capture.</li>
+<li>You may arrange them, crop them, and keep the arrangement as a code.</li>
+<li>One print is made each day, by the first person to crop and order it.</li>
+<li>If no one orders, the day closes at midnight. At 6:41 the next day's pages arrive.</li>
+<li>No more than 20 prints are made in a month.</li>
+<li>Each print is labeled with the date, the time, and the maker/buyer's name.</li>
+</ol>
+<p>ordering opens soon</p>
+</div></div>
 <nav id="nav">
 <button id="left" type="button" aria-label="left pile"><svg viewBox="0 0 22 22"><path d="M17 11H5M10 6l-5 5 5 5"/></svg></button>
 <button id="center" type="button" aria-label="center"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="6"/></svg></button>
@@ -50,7 +67,7 @@ body.sliding .sheet { transition: none; }
 <button id="cancel" type="button">cancel</button>
 </div>
 <div class="bar" id="keptbar">
-<span>16 x 20 print, edition of 20</span>
+<span>16 x 20 print</span>
 <button id="copy" type="button">copy link</button>
 <button id="order" type="button">order (coming soon)</button>
 <button id="close" type="button">close</button>
@@ -278,6 +295,8 @@ fetch((dir ? BASE + "archive/" + dir + "/" : BASE) + "meta.json?" + Date.now()).
 });
 addEventListener("resize", function () { if (printData) return; measure(); if (framing) drawFrame(); else moveAll(C, "C"); });
 $("gather").addEventListener("click", gather);
+$("rules").addEventListener("click", function () { $("rulespanel").style.display = "flex"; });
+$("rulespanel").addEventListener("click", function () { $("rulespanel").style.display = "none"; });
 $("left").addEventListener("click", function () { moveAll(A, "A"); });
 $("center").addEventListener("click", function () { moveAll(C, "C"); });
 $("right").addEventListener("click", function () { moveAll(B, "B"); });

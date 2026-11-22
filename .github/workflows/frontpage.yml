@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Capture and redact the front page
         run: |
-          pip install --quiet playwright pillow "rembg[cpu]" numpy scipy
+          pip install --quiet playwright pillow numpy "opencv-python-headless<5"
           python3 -m playwright install --with-deps chromium > /dev/null
           python3 - <<'PY'
           import sys
@@ -109,24 +109,20 @@ jobs:
           now = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York"))
           with open("frontpage/meta.json", "w") as f:
               json.dump({"name": NAMES[saved], "url": saved, "date": now.strftime("%B ") + str(now.day) + now.strftime(" %Y"), "time": now.strftime("%H%M")}, f)
-          import numpy as np, random
-          from scipy import ndimage
+          import numpy as np, random, cv2
           from PIL import ImageDraw
-          from rembg import remove, new_session
           im = Image.open("/tmp/front.png").convert("RGB")
           draw = ImageDraw.Draw(im)
-          session = new_session("u2net_human_seg")
-          people = 0
           K = (0, 0, 0)
-          def stroke(x, y, w, h, thick):
-              # a hand drawn marker bar through the middle of a line
+          def stroke(x, y, w, h, thick, cyf=0.57):
+              # a hand drawn marker bar through the body of a line
               x0 = x + random.uniform(-4, 5)
               x1 = x + w + random.uniform(-9, 7)
               if random.random() < 0.12 and w > 60:
                   x1 = x + w * random.uniform(0.6, 0.92)
               if x1 - x0 < 4:
                   return
-              cy = y + h * (0.57 + random.uniform(-0.04, 0.04))
+              cy = y + h * (cyf + random.uniform(-0.04, 0.04))
               t = max(2.0, h * thick * random.uniform(0.85, 1.2))
               slope = max(-1.5, min(1.5, random.uniform(-0.006, 0.006) * (x1 - x0)))
               steps = max(2, int((x1 - x0) / 22))
@@ -136,46 +132,48 @@ jobs:
                   c = cy + slope * i / steps
                   top.append((px, c - t / 2 + random.uniform(-0.9, 0.9)))
                   bot.append((px, c + t / 2 + random.uniform(-0.9, 0.9)))
-              top[0] = (top[0][0] + random.uniform(0, 3), top[0][1])
-              bot[-1] = (bot[-1][0] - random.uniform(0, 3), bot[-1][1])
               draw.polygon(top + bot[::-1], fill=K)
-          def patch(x0, y0, x1, y1, clip=None):
-              # an uneven, slightly tilted hand made block
-              w, h = x1 - x0, y1 - y0
-              j = lambda a: random.uniform(-a, a)
-              jx, jy = 0.05 * w, 0.05 * h
-              pts = [(x0 + j(jx), y0 + j(jy)), (x1 + j(jx), y0 + j(jy)), (x1 + j(jx), y1 + j(jy)), (x0 + j(jx), y1 + j(jy))]
-              edge = []
-              for a, b in zip(pts, pts[1:] + pts[:1]):
-                  for i in range(6):
-                      t = i / 6
-                      edge.append((a[0] + (b[0] - a[0]) * t + j(2), a[1] + (b[1] - a[1]) * t + j(2)))
-              if clip:
-                  edge = [(min(max(px, clip[0]), clip[2]), min(max(py, clip[1]), clip[3])) for px, py in edge]
-              draw.polygon(edge, fill=K)
+          def eyebar(x, y, w, h):
+              # a short uneven bar across the eyes
+              bx0 = x - w * random.uniform(0.05, 0.15)
+              bx1 = x + w * (1 + random.uniform(0.05, 0.15))
+              cy = y + h * random.uniform(0.38, 0.45)
+              t = h * random.uniform(0.2, 0.28)
+              tilt = random.uniform(-0.08, 0.08) * (bx1 - bx0)
+              top, bot = [], []
+              for i in range(9):
+                  px = bx0 + (bx1 - bx0) * i / 8
+                  c = cy + tilt * (i / 8 - 0.5)
+                  top.append((px, c - t / 2 + random.uniform(-2, 2)))
+                  bot.append((px, c + t / 2 + random.uniform(-2, 2)))
+              draw.polygon(top + bot[::-1], fill=K)
           for x, y, w, h in res["lines"]:
               stroke(x, y, w, h, 0.43)
           for x, y, w, h in res["marks"]:
-              stroke(x, y, w, h, 0.36)
+              stroke(x, y, w, h, 0.36, 0.5)
           for x, y, w, h in res["blocks"]:
-              patch(x + 0.08 * w, y + 0.1 * h, x + 0.92 * w, y + 0.9 * h)
+              stroke(x, y, w, h, 0.16, 0.5)
+          gray = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2GRAY)
+          front = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+          prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+          faces = []
           for x, y, w, h in photos:
               x0, y0 = max(0, int(x)), max(0, int(y))
               x1, y1 = min(im.width, int(x + w)), min(im.height, int(y + h))
               if x1 - x0 < 40 or y1 - y0 < 40:
                   continue
-              crop = im.crop((x0, y0, x1, y1))
-              mask = np.array(remove(crop, session=session, only_mask=True).convert("L")) > 120
-              labels, n = ndimage.label(mask)
-              for sl in ndimage.find_objects(labels):
-                  if sl is None:
+              g = gray[y0:y1, x0:x1]
+              found = list(front.detectMultiScale(g, 1.1, 5, minSize=(18, 18)))
+              found += list(prof.detectMultiScale(g, 1.1, 4, minSize=(18, 18)))
+              found += [(g.shape[1] - fx - fw, fy, fw, fh) for fx, fy, fw, fh in prof.detectMultiScale(cv2.flip(g, 1), 1.1, 4, minSize=(18, 18))]
+              for fx, fy, fw, fh in found:
+                  box = (x0 + fx, y0 + fy, fw, fh)
+                  if any(abs(box[0] - b[0]) < 0.5 * fw and abs(box[1] - b[1]) < 0.5 * fh for b in faces):
                       continue
-                  hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
-                  if hh * ww < 0.015 * mask.size:
-                      continue
-                  patch(x0 + sl[1].start + random.uniform(0, 0.08) * ww, y0 + sl[0].start - random.uniform(0, 0.04) * hh, x0 + sl[1].stop - random.uniform(0, 0.08) * ww, y0 + sl[0].start + hh * random.uniform(0.72, 0.95), clip=(x0, y0, x1, y1))
-                  people += 1
-          print("photos:", len(photos), "| people blocked:", people)
+                  faces.append(box)
+          for fx, fy, fw, fh in faces:
+              eyebar(fx, fy, fw, fh)
+          print("photos:", len(photos), "| faces covered:", len(faces))
           im.convert("L").save("frontpage/front.jpg", quality=80, optimize=True)
           PY
       - uses: stefanzweifel/git-auto-commit-action@v5

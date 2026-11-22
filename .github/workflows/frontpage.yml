@@ -169,7 +169,7 @@ jobs:
               print(out_path, "| text blocks:", len(boxes), "| pictures removed:", removed)
               im.save(out_path, quality=82, optimize=True)
           NEWS = [("https://www.nytimes.com/", "The New York Times"), ("https://apnews.com/", "Associated Press"), ("https://www.reuters.com/", "Reuters"), ("https://www.bbc.com/news", "BBC News"), ("https://en.wikipedia.org/wiki/Main_Page", "Wikipedia")]
-          OTHERS = [("https://www.ralphlauren.com/", "Ralph Lauren", "frontpage/front2.jpg")]
+          OTHERS = [("https://www.theguardian.com/international", "The Guardian", "frontpage/front2.jpg"), ("https://www.aljazeera.com/", "Al Jazeera", "frontpage/front3.jpg")]
           try:
               meta = json.load(open("frontpage/meta.json"))
           except Exception:
@@ -186,14 +186,18 @@ jobs:
                       process(res, "/tmp/front.png", "frontpage/front.jpg")
                       stamp(pages[0], url, name)
                       break
-              for i, (url, name, path) in enumerate(OTHERS, start=1):
+              old = {pg.get("file"): pg for pg in pages[1:]}
+              pages = pages[:1]
+              for url, name, path in OTHERS:
+                  fn = path.split("/")[-1]
                   res = capture(b, url, 20, "/tmp/other.png")
                   if res:
                       process(res, "/tmp/other.png", path)
-                      while len(pages) <= i:
-                          pages.append({"file": path.split("/")[-1]})
-                      pages[i]["file"] = path.split("/")[-1]
-                      stamp(pages[i], url, name)
+                      entry = {"file": fn}
+                      stamp(entry, url, name)
+                      pages.append(entry)
+                  elif fn in old and old[fn].get("name") == name:
+                      pages.append(old[fn])
               b.close()
           first = pages[0]
           meta = {"name": first.get("name", ""), "url": first.get("url", ""), "iso": first.get("iso", ""), "time": first.get("time", ""), "pages": pages}

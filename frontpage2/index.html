@@ -13,6 +13,7 @@ button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke
 button:hover { color: #9a9a9a; }
 button:focus-visible { outline: 1px solid #c4c4c4; }
 .sheet { position: absolute; left: 0; top: 0; cursor: grab; will-change: transform; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.14)); transition: transform .75s cubic-bezier(.2,.7,.2,1); }
+.cap { position: absolute; left: 0; top: 0; padding: 10px 12px; font: 12px/1.4 Helvetica, Arial, sans-serif; color: #a8a8a8; background: #fff; pointer-events: none; white-space: nowrap; }
 .sheet img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
 .sheet.held { cursor: grabbing; transition: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
 @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
@@ -59,10 +60,12 @@ function gather() {
   });
   z += sheets.length + 1;
 }
-function add(src) {
+function add(src, label) {
   const el = document.createElement("div"); el.className = "sheet";
   const im = document.createElement("img"); im.src = src; im.alt = ""; im.draggable = false;
-  el.appendChild(im); document.body.appendChild(el);
+  el.appendChild(im);
+  if (label) { const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = label; el.appendChild(cap); }
+  document.body.appendChild(el);
   const s = { el: el, x: 0, y: 0, rot: 0, z: 0, pile: "C" };
   sheets.push(s);
   let start = null;
@@ -98,10 +101,8 @@ function add(src) {
   el.addEventListener("pointercancel", release);
 }
 function show(pages) {
-  const p0 = pages[0] || {};
-  document.getElementById("stamp").textContent = (p0.iso || "") + (p0.time ? " - " + p0.time : "");
   const v = Date.now();
-  pages.forEach(function (pg) { add(BASE + pg.file.replace(".jpg", "_cut.webp") + "?" + v); });
+  pages.forEach(function (pg) { add(BASE + pg.file.replace(".jpg", "_cut.webp") + "?" + v, (pg.name ? pg.name + ", " : "") + (pg.iso || "") + (pg.time ? " - " + pg.time : "")); });
   measure(); gather();
 }
 fetch(BASE + "meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {

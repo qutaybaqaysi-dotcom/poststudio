@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://poststudio.org/test/">
+<meta property="og:image" content="https://poststudio.org/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://poststudio.org/og.jpg">
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+a.word { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-size: 16px; letter-spacing: 0.06em; color: #b4b4b4; text-decoration: none; filter: blur(0.45px); text-shadow: 2px 1px 1px rgba(255, 255, 255, 0.14); transition: filter 0.9s, color 0.9s, text-shadow 0.9s; will-change: transform; }
+a.word:hover { filter: blur(0); color: #fff; text-shadow: none; }
+</style>
+</head>
+<body>
+<a class="word" href="../frontpage/">front page version 1</a>
+<a class="word" href="../frontpage2/">front page version 2</a>
+<script>
+var words = [];
+var els = document.querySelectorAll(".word");
+for (var i = 0; i < els.length; i++) {
+(function (el) {
+var w = {
+el: el,
+x: innerWidth * (0.25 + Math.random() * 0.5),
+y: innerHeight * (0.25 + Math.random() * 0.5),
+angle: Math.random() * 6.28,
+speed: 7 + Math.random() * 4,
+paused: false
+};
+el.addEventListener("mouseenter", function () { w.paused = true; });
+el.addEventListener("mouseleave", function () { w.paused = false; });
+words.push(w);
+})(els[i]);
+}
+var last = performance.now();
+function frame(now) {
+var dt = Math.min(0.05, (now - last) / 1000);
+last = now;
+for (var i = 0; i < words.length; i++) {
+var w = words[i];
+if (!w.paused) {
+w.angle += (Math.random() - 0.5) * 0.6 * dt;
+w.x += Math.cos(w.angle) * w.speed * dt;
+w.y += Math.sin(w.angle) * w.speed * dt;
+var m = 60;
+var ew = w.el.offsetWidth, eh = w.el.offsetHeight;
+if (w.x < m) { w.x = m; w.angle = Math.PI - w.angle; }
+if (w.x > innerWidth - ew - m) { w.x = innerWidth - ew - m; w.angle = Math.PI - w.angle; }
+if (w.y < m) { w.y = m; w.angle = -w.angle; }
+if (w.y > innerHeight - eh - m) { w.y = innerHeight - eh - m; w.angle = -w.angle; }
+}
+w.el.style.transform = "translate(" + w.x + "px," + w.y + "px)";
+}
+requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

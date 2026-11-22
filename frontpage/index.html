@@ -16,18 +16,16 @@ img { display: block; flex: 1 1 auto; min-height: 0; width: 100%; object-fit: co
 </head>
 <body>
 <header>
-<div id="name"></div>
-<div><a id="link" target="_blank" rel="noopener"></a></div>
 <div id="when"></div>
 </header>
 <img alt="" src="front.jpg">
 <script>
 document.querySelector("img").src = "front.jpg?" + Date.now();
 fetch("meta.json?" + Date.now()).then(function (r) { return r.json(); }).then(function (m) {
-  document.getElementById("name").textContent = m.name;
-  var a = document.getElementById("link");
-  a.href = m.url; a.textContent = m.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
-  document.getElementById("when").textContent = m.date + (m.time ? ", " + m.time : "");
+  var iso = m.iso;
+  if (!iso) { var d = new Date(m.date.replace(/^(\w+) (\d+) (\d+)$/, "$1 $2, $3")); iso = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  document.getElementById("when").textContent = iso + (m.time ? " - " + m.time : "");
+  document.title = m.name;
 }).catch(function () {});
 </script>
 </body>

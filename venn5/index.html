@@ -82,7 +82,8 @@ function step(now) {
     const out = new Path2D(); out.rect(0, 0, W, H); out.addPath(p[1 - k]);
     g.save(); g.clip(out, "evenodd"); g.stroke(q); g.restore();
   });
-  g.fillStyle = "#333333"; g.font = "14px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  /* the words are the same gray as the overlap, so they vanish where the circles meet */
+  g.fillStyle = "#4d4d4d"; g.font = "14px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
   circles.forEach(function (c) { g.fillText(c.word, FX + c.x * FW, FY + c.y * FH); });
   /* you above its two rows, me above its two, at the left edge */
   g.font = "13px Helvetica, Arial, sans-serif"; g.textAlign = "left";

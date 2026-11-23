@@ -80,14 +80,14 @@ function step(now) {
     g.fillStyle = "#333333";
     g.fillText(w, X0 + S / 2, (rowY(k * 2) + rowY(k * 2 + 1)) / 2);
   });
-  /* four rows of eleven dots in one muted 20% gray; the setting is a 55% gray; the middle is an open circle */
+  /* four rows of eleven dots in one muted 20% gray; the setting is a 40% gray; the middle is an open circle */
   scales.forEach(function (sc, i) {
     const dy = rowY(i), base = "#333333";
     for (let j = 0; j <= 10; j++) {
       const x = X0 + S * j / 10, on = j === sc.z;
       g.beginPath(); g.arc(x, dy, 5, 0, Math.PI * 2);
-      if (j === 5) { g.strokeStyle = on ? "#8c8c8c" : base; g.lineWidth = on ? 2 : 1.2; g.stroke(); }
-      else { g.fillStyle = on ? "#8c8c8c" : base; g.fill(); }
+      if (j === 5) { g.strokeStyle = on ? "#666666" : base; g.lineWidth = on ? 2 : 1.2; g.stroke(); }
+      else { g.fillStyle = on ? "#666666" : base; g.fill(); }
     }
   });
   requestAnimationFrame(step);

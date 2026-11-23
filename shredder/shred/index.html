@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
+canvas { display: block; width: 100%; height: 100%; }
+#save { position: fixed; left: 0; right: 0; bottom: 10px; text-align: center; font: 14px/1 Helvetica, Arial, sans-serif; color: #808080; display: none; }
+#save a { color: #e6e6e6; text-decoration: none; padding: 14px 20px; display: inline-block; }
+#empty { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font: 14px/1 Helvetica, Arial, sans-serif; color: #808080; }
+#empty a { color: #808080; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="save"><a id="dl" href="#">save</a></div>
+<div id="empty"><a href="../">nothing in the shredder</a></div>
+<script>
+{
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+/* the image is taken once and removed: there is no going back */
+let src = null;
+try { src = sessionStorage.getItem("shred"); sessionStorage.removeItem("shred"); } catch (e) {}
+if (!src) { document.getElementById("empty").style.display = "flex"; }
+const img = new Image();
+let W, H, dpr, SLOT, w, h, x0, s;
+const STRIPS = 28;
+let feed = 0;           /* how far the paper has passed through the slot, in screen pixels */
+let cut = 0;            /* how much of the passed paper has broken off and fallen */
+let done = false;
+const falling = [], pile = [];
+let ground = [];
+function size() {
+  dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  SLOT = Math.round(H * 2 / 3);
+  if (img.width) {
+    w = Math.min(W * 0.82, 520);
+    h = w * img.height / img.width;
+    if (h > SLOT * 0.92) { h = SLOT * 0.92; w = h * img.width / img.height; }
+    x0 = (W - w) / 2; s = img.width / w;
+  }
+  ground = new Array(Math.ceil(W / 4) + 1).fill(H);
+}
+/* scrolling, by wheel or finger, in either direction, feeds the paper */
+function push(d) {
+  if (!img.width || done) return;
+  feed = Math.min(h, feed + Math.abs(d) * 0.6);
+}
+addEventListener("wheel", function (e) { e.preventDefault(); push(e.deltaY); }, { passive: false });
+let ty = null;
+addEventListener("touchstart", function (e) { ty = e.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", function (e) { e.preventDefault(); const y = e.touches[0].clientY; push(y - ty); ty = y; }, { passive: false });
+addEventListener("touchend", function () { ty = null; });
+function groundAt(x) { const i = Math.max(0, Math.min(ground.length - 1, Math.floor(x / 4))); return ground[i]; }
+function settle(p) {
+  const i0 = Math.max(0, Math.floor((p.x - p.w / 2) / 4)), i1 = Math.min(ground.length - 1, Math.floor((p.x + p.w / 2) / 4));
+  for (let i = i0; i <= i1; i++) ground[i] -= 1.6;
+  pile.push(p);
+}
+/* the paper that hangs below the slot breaks off in pieces, strip by strip */
+function release(upTo) {
+  const sw = w / STRIPS;
+  while (cut < upTo) {
+    const len = Math.min(upTo - cut, 22 + Math.random() * 30);
+    const y0 = SLOT + (feed - cut - len);   /* the piece's top on screen while hanging */
+    for (let k = 0; k < STRIPS; k++) {
+      falling.push({ x: x0 + sw * (k + 0.5), y: y0 + len / 2, w: sw, l: len, sx: k * sw * s, sy: (h - cut - len) * s, sw: sw * s, sl: len * s,
+        vx: (Math.random() - 0.5) * 0.6, vy: Math.random() * 0.5, r: 0, vr: (Math.random() - 0.5) * 0.08 });
+    }
+    cut += len;
+  }
+}
+function step() {
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  if (img.width) {
+    const hang = Math.max(40, (H - SLOT) * 0.45);
+    if (feed - cut > hang) release(feed - hang);
+    if (feed >= h && !done) { release(h); done = true; setTimeout(finish, 2600); }
+    /* the whole sheet above the slot */
+    const above = h - feed;
+    if (above > 0) g.drawImage(img, 0, 0, img.width, above * s, x0, SLOT - above, w, above);
+    /* the strips hanging below the slot, slightly parted */
+    const hl = feed - cut, sw = w / STRIPS;
+    if (hl > 0) for (let k = 0; k < STRIPS; k++) {
+      const spread = (k - (STRIPS - 1) / 2) * Math.min(1.4, hl / 120);
+      g.drawImage(img, k * sw * s, (h - feed) * s, sw * s, hl * s, x0 + k * sw + spread, SLOT, sw - 0.6, hl);
+    }
+    /* the slot */
+    g.strokeStyle = "#e6e6e6"; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(x0 - 18, SLOT); g.lineTo(x0 + w + 18, SLOT); g.stroke();
+    /* falling pieces */
+    for (let i = falling.length - 1; i >= 0; i--) {
+      const p = falling[i];
+      p.vy += 0.22; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      if (p.y + p.l * 0.3 >= groundAt(p.x)) {
+        p.y = groundAt(p.x) - p.w / 2; p.r = (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 + (Math.random() - 0.5) * 0.5);
+        falling.splice(i, 1); settle(p); continue;
+      }
+      draw(p);
+    }
+    pile.forEach(draw);
+  }
+  requestAnimationFrame(step);
+}
+function draw(p) {
+  g.save(); g.translate(p.x, p.y); g.rotate(p.r);
+  g.drawImage(img, p.sx, p.sy, p.sw, p.sl, -p.w / 2, -p.l / 2, p.w - 0.6, p.l);
+  g.restore();
+}
+/* once the last piece has fallen, the result can be kept */
+function finish() {
+  const a = document.getElementById("dl");
+  a.href = cv.toDataURL("image/png");
+  const t = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
+  a.download = "shredder-" + t.getFullYear() + "-" + z(t.getMonth() + 1) + "-" + z(t.getDate()) + "-" + z(t.getHours()) + z(t.getMinutes()) + ".png";
+  document.getElementById("save").style.display = "block";
+}
+img.onload = function () { size(); requestAnimationFrame(step); };
+addEventListener("resize", size);
+if (src) img.src = src;
+}
+</script>
+</body>
+</html>

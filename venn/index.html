@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+{
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+let W, H, S, X0, Y0, R, dpr;
+/* two circles, each the size of one quarter of the square; positions and velocities in square units (0..1) */
+const circles = [0, 1].map(function () {
+  const a = Math.random() * Math.PI * 2;
+  return { x: 0.25 + Math.random() * 0.5, y: 0.25 + Math.random() * 0.5, a: a, sp: 0.012 + Math.random() * 0.006 };
+});
+function size() {
+  dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  S = Math.min(W, H) * 0.78;
+  X0 = (W - S) / 2; Y0 = (H - S) / 2;
+  R = 0.25;
+}
+let last = performance.now();
+function step(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  circles.forEach(function (c) {
+    /* a very slow drift in heading, so the paths never settle into a pattern */
+    c.a += (Math.random() - 0.5) * 0.02;
+    c.x += Math.cos(c.a) * c.sp * dt;
+    c.y += Math.sin(c.a) * c.sp * dt;
+    /* touching the edge of the square, the circle turns back */
+    if (c.x < R) { c.x = R; c.a = Math.PI - c.a; }
+    if (c.x > 1 - R) { c.x = 1 - R; c.a = Math.PI - c.a; }
+    if (c.y < R) { c.y = R; c.a = -c.a; }
+    if (c.y > 1 - R) { c.y = 1 - R; c.a = -c.a; }
+  });
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = "#e6e6e6"; g.lineWidth = 1.5;
+  g.strokeRect(X0, Y0, S, S);
+  circles.forEach(function (c) {
+    g.beginPath(); g.arc(X0 + c.x * S, Y0 + c.y * S, R * S, 0, Math.PI * 2); g.stroke();
+  });
+  requestAnimationFrame(step);
+}
+size();
+addEventListener("resize", size);
+requestAnimationFrame(step);
+}
+</script>
+</body>
+</html>

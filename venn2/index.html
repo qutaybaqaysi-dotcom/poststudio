@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+{
+/* US national debt, 1791 to 2026 (US Treasury, Historical Debt Outstanding).
+   Each year's change in the debt, ranked against all years, as a zone from 0 (calmest) to 10 (most violent). */
+const FIRST = 1791;
+const ZONES = [5,2,4,2,3,3,2,3,1,5,0,3,4,7,4,6,7,5,8,6,7,5,9,9,9,9,3,8,6,4,1,3,3,1,6,3,7,7,8,8,9,9,10,9,10,7,10,10,10,10,9,10,10,9,9,2,10,9,9,0,6,3,7,9,8,7,7,9,9,7,9,10,10,9,9,3,3,2,1,4,5,4,1,1,1,2,1,2,4,7,2,6,1,3,1,4,6,2,4,4,0,3,3,5,2,5,2,1,7,6,0,1,2,3,0,3,4,5,0,0,4,3,1,0,4,8,9,10,9,5,6,4,2,5,3,4,5,4,4,4,3,8,8,8,5,8,6,2,7,5,8,9,9,9,9,4,4,2,0,1,1,1,2,2,1,0,1,2,3,0,1,3,2,1,1,1,2,5,1,4,6,6,6,3,7,8,8,7,6,7,7,8,8,8,8,8,7,7,7,8,8,7,6,5,5,4,3,2,2,0,2,6,7,6,6,6,5,7,8,8,7,6,4,5,1,6,3,5,5,8,5,6,6,5,5,5];
+const LOOP = 30; /* seconds for the whole history */
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+let W, H, M, X0, Y0, RW, RH, R, U, dpr;
+function size() {
+  dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  M = Math.max(22, Math.min(W, H) * 0.05);
+  X0 = M; Y0 = M; RW = W - 2 * M; RH = H - 2 * M;
+  U = Math.min(RW, RH);
+  R = U * 0.135;
+}
+size();
+const circles = [0, 1].map(function () {
+  return { x: X0 + R + Math.random() * (RW - 2 * R), y: Y0 + R + Math.random() * (RH - 2 * R), a: Math.random() * Math.PI * 2 };
+});
+/* both circles share one speed, set by the year's zone */
+function zoneSpeed(z) { return U * 0.012 * Math.pow(1.38, z); }
+let sp = zoneSpeed(ZONES[0]), t0 = performance.now(), last = t0;
+function step(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const k = Math.floor(((now - t0) / 1000) / LOOP * ZONES.length) % ZONES.length;
+  sp += (zoneSpeed(ZONES[k]) - sp) * Math.min(1, dt * 6);
+  circles.forEach(function (c) {
+    c.a += (Math.random() - 0.5) * 0.02;
+    c.x += Math.cos(c.a) * sp * dt;
+    c.y += Math.sin(c.a) * sp * dt;
+    if (c.x < X0 + R) { c.x = X0 + R; c.a = Math.PI - c.a; }
+    if (c.x > X0 + RW - R) { c.x = X0 + RW - R; c.a = Math.PI - c.a; }
+    if (c.y < Y0 + R) { c.y = Y0 + R; c.a = -c.a; }
+    if (c.y > Y0 + RH - R) { c.y = Y0 + RH - R; c.a = -c.a; }
+  });
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  g.lineWidth = 1.5; g.strokeStyle = "#808080";
+  g.strokeRect(X0, Y0, RW, RH);
+  const p = circles.map(function (c) { const q = new Path2D(); q.arc(c.x, c.y, R, 0, Math.PI * 2); return q; });
+  g.save(); g.clip(p[0]); g.fillStyle = "#808080"; g.fill(p[1]); g.restore();
+  g.strokeStyle = "#e6e6e6";
+  p.forEach(function (q, i) {
+    const out = new Path2D(); out.rect(0, 0, W, H); out.addPath(p[1 - i]);
+    g.save(); g.clip(out, "evenodd"); g.stroke(q); g.restore();
+  });
+  /* the year, counting up in the corner */
+  g.fillStyle = "#808080"; g.font = "12px Helvetica, Arial, sans-serif"; g.textBaseline = "middle";
+  g.fillText(String(FIRST + k), X0, Y0 + RH + M / 2);
+  requestAnimationFrame(step);
+}
+addEventListener("resize", function () {
+  const ox = X0, oy = Y0, ow = RW, oh = RH;
+  size();
+  circles.forEach(function (c) { c.x = X0 + (c.x - ox) / ow * RW; c.y = Y0 + (c.y - oy) / oh * RH; });
+});
+requestAnimationFrame(step);
+}
+</script>
+</body>
+</html>

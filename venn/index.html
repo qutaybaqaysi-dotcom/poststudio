@@ -44,11 +44,15 @@ function step(now) {
   });
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
-  g.strokeStyle = "#e6e6e6"; g.lineWidth = 1.5;
+  /* the square at 50% brightness */
+  g.lineWidth = 1.5; g.strokeStyle = "#808080";
   g.strokeRect(X0, Y0, S, S);
-  circles.forEach(function (c) {
-    g.beginPath(); g.arc(X0 + c.x * S, Y0 + c.y * S, R * S, 0, Math.PI * 2); g.stroke();
-  });
+  /* where the two circles overlap, the shared space turns 50% gray */
+  const p = circles.map(function (c) { const q = new Path2D(); q.arc(X0 + c.x * S, Y0 + c.y * S, R * S, 0, Math.PI * 2); return q; });
+  g.save(); g.clip(p[0]); g.fillStyle = "#808080"; g.fill(p[1]); g.restore();
+  /* the circles at 90% brightness */
+  g.strokeStyle = "#e6e6e6";
+  p.forEach(function (q) { g.stroke(q); });
   requestAnimationFrame(step);
 }
 size();

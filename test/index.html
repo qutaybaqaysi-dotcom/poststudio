@@ -15,16 +15,17 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
 a.word { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-size: 16px; letter-spacing: 0.06em; color: #b4b4b4; text-decoration: none; filter: blur(0.45px); text-shadow: 2px 1px 1px rgba(255, 255, 255, 0.14); transition: filter 0.9s, color 0.9s, text-shadow 0.9s; will-change: transform; }
 a.word:hover { filter: blur(0); color: #fff; text-shadow: none; }
+#older { position: absolute; left: 0; right: 0; top: 18px; text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 13px; letter-spacing: 0.06em; color: #5a5a5a; line-height: 1.9; }
+#older a { color: #808080; text-decoration: none; margin: 0 6px; }
+#older a:hover { color: #fff; }
 </style>
 </head>
 <body>
-<a class="word" href="../frontpage/">front page v1</a>
-<a class="word" href="../frontpage2/">front page v2</a>
-<a class="word" href="../frontpage3/">front page v3</a>
+<div id="older">
+<div>front page <a href="../frontpage/">v1</a><a href="../frontpage2/">v2</a><a href="../frontpage3/">v3</a></div>
+<div>venn <a href="../venn/">v1</a><a href="../venn2/">v2</a><a href="../venn3/">v3</a></div>
+</div>
 <a class="word" href="../frontpage4/">front page v4</a>
-<a class="word" href="../venn/">venn v1</a>
-<a class="word" href="../venn2/">venn v2</a>
-<a class="word" href="../venn3/">venn v3</a>
 <a class="word" href="../venn4/">venn v4</a>
 <a class="word" href="../shredder/">shredder v1</a>
 <script>

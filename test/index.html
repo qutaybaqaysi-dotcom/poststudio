@@ -3,71 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title></title>
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://poststudio.org/test/">
-<meta property="og:image" content="https://poststudio.org/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://poststudio.org/og.jpg">
 <style>
-html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
-a.word { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-size: 16px; letter-spacing: 0.06em; color: #b4b4b4; text-decoration: none; filter: blur(0.45px); text-shadow: 2px 1px 1px rgba(255, 255, 255, 0.14); transition: filter 0.9s, color 0.9s, text-shadow 0.9s; will-change: transform; }
-a.word:hover { filter: blur(0); color: #fff; text-shadow: none; }
-#older { position: absolute; left: 0; right: 0; top: 18px; text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 13px; letter-spacing: 0.06em; color: #5a5a5a; line-height: 1.9; }
-#older a { color: #808080; text-decoration: none; margin: 0 6px; }
-#older a:hover { color: #fff; }
+html, body { margin: 0; height: 100%; background: #000; font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.06em; }
+#gate { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+#gate input { background: none; border: 0; border-bottom: 1px solid #4d4d4d; color: #b4b4b4; font: 16px Helvetica, Arial, sans-serif; letter-spacing: 0.2em; text-align: center; width: 160px; padding: 6px 0; outline: none; }
+#gate input.no { border-bottom-color: #8c8c8c; }
+#list { display: none; padding: 40px 32px; }
+.row { font-size: 16px; color: #808080; line-height: 2.2; }
+.row span { display: inline-block; min-width: 120px; }
+.row a { color: #b4b4b4; text-decoration: none; margin-right: 18px; }
+.row a:hover { color: #fff; }
 </style>
 </head>
 <body>
-<div id="older">
-<div>front page <a href="../frontpage/">v1</a><a href="../frontpage2/">v2</a><a href="../frontpage3/">v3</a></div>
-<div>venn <a href="../venn/">v1</a><a href="../venn2/">v2</a><a href="../venn3/">v3</a></div>
+<div id="gate"><input id="pw" type="password" autocomplete="off" aria-label="password"></div>
+<div id="list">
+<div class="row"><span>front page</span><a href="../frontpage/">v1</a><a href="../frontpage2/">v2</a><a href="../frontpage3/">v3</a><a href="../frontpage4/">v4</a></div>
+<div class="row"><span>venn</span><a href="../venn/">v1</a><a href="../venn2/">v2</a><a href="../venn3/">v3</a><a href="../venn4/">v4</a></div>
+<div class="row"><span>shredder</span><a href="../shredder/">v1</a></div>
 </div>
-<a class="word" href="../frontpage4/">front page v4</a>
-<a class="word" href="../venn4/">venn v4</a>
-<a class="word" href="../shredder/">shredder v1</a>
 <script>
-var words = [];
-var els = document.querySelectorAll(".word");
-for (var i = 0; i < els.length; i++) {
-(function (el) {
-var w = {
-el: el,
-x: innerWidth * (0.25 + Math.random() * 0.5),
-y: innerHeight * (0.25 + Math.random() * 0.5),
-angle: Math.random() * 6.28,
-speed: 7 + Math.random() * 4,
-paused: false
-};
-el.addEventListener("mouseenter", function () { w.paused = true; });
-el.addEventListener("mouseleave", function () { w.paused = false; });
-words.push(w);
-})(els[i]);
+{
+const KEY = "baf292b193a94f56cf9112a65ff9ec8df5cac779ee5e9463059675a3dfd4899d";
+const gate = document.getElementById("gate"), list = document.getElementById("list"), pw = document.getElementById("pw");
+const show = function () { gate.style.display = "none"; list.style.display = "block"; }
+try { if (sessionStorage.getItem("test") === "1") show(); } catch (e) {}
+pw.focus();
+pw.addEventListener("keydown", async function (e) {
+  if (e.key !== "Enter") return;
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw.value));
+  const h = Array.from(new Uint8Array(b)).map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+  if (h === KEY) { try { sessionStorage.setItem("test", "1"); } catch (e) {} show(); }
+  else { pw.value = ""; pw.classList.add("no"); setTimeout(function () { pw.classList.remove("no"); }, 600); }
+});
 }
-var last = performance.now();
-function frame(now) {
-var dt = Math.min(0.05, (now - last) / 1000);
-last = now;
-for (var i = 0; i < words.length; i++) {
-var w = words[i];
-if (!w.paused) {
-w.angle += (Math.random() - 0.5) * 0.6 * dt;
-w.x += Math.cos(w.angle) * w.speed * dt;
-w.y += Math.sin(w.angle) * w.speed * dt;
-var m = 60;
-var ew = w.el.offsetWidth, eh = w.el.offsetHeight;
-if (w.x < m) { w.x = m; w.angle = Math.PI - w.angle; }
-if (w.x > innerWidth - ew - m) { w.x = innerWidth - ew - m; w.angle = Math.PI - w.angle; }
-if (w.y < m) { w.y = m; w.angle = -w.angle; }
-if (w.y > innerHeight - eh - m) { w.y = innerHeight - eh - m; w.angle = -w.angle; }
-}
-w.el.style.transform = "translate(" + w.x + "px," + w.y + "px)";
-}
-requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
 </script>
 </body>
 </html>

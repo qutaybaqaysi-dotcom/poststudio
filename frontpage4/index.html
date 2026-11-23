@@ -100,6 +100,8 @@ function measure() {
   W = innerWidth; H = innerHeight;
   const wide = W > H * 0.95;
   SH = Math.min(H * 0.8, (wide ? W * 0.42 : W * 0.78) / 0.6);
+  /* a whole page always fits inside the largest frame the screen allows, so a crop can take in the full page on a phone */
+  SH = Math.min(SH, (W - 16) * 1.25 * 0.92, (H - 60) * 0.92);
   SW = SH * 0.6;
   const cy = H / 2;
   C = { x: W / 2, y: cy };

@@ -48,6 +48,14 @@ cv.addEventListener("pointerdown", function (e) {
     }
   }
 });
+/* the pointing hand over the dots */
+cv.addEventListener("pointermove", function (e) {
+  let over = false;
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(e.clientY - rowY(i)) < ROW / 2 && e.clientX > X0 - S / 20 && e.clientX < X0 + S + S / 20) over = true;
+  }
+  cv.style.cursor = over ? "pointer" : "default";
+});
 let last = performance.now();
 function step(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;

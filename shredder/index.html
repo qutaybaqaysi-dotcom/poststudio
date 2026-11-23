@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; background: #000; }
+body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; font: 14px/1.4 Helvetica, Arial, sans-serif; color: #808080; }
+#frame { width: min(64vw, 320px); aspect-ratio: 4 / 5; border: 1.5px solid #808080; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; overflow: hidden; }
+#frame svg { width: 30px; height: 30px; stroke: #808080; fill: none; stroke-width: 1.2; }
+#frame img { width: 100%; height: 100%; object-fit: contain; display: none; }
+#frame.has svg, #frame.has span { display: none; }
+#frame.has img { display: block; }
+#submit { font: 14px/1 Helvetica, Arial, sans-serif; color: #e6e6e6; background: none; border: 0; padding: 14px 20px; min-height: 44px; cursor: pointer; visibility: hidden; }
+#submit.on { visibility: visible; }
+input { display: none; }
+</style>
+</head>
+<body>
+<label id="frame" for="file">
+<svg viewBox="0 0 30 30"><path d="M15 21V7M9 13l6-6 6 6M6 24h18"/></svg>
+<span>upload image</span>
+<img id="preview" alt="">
+</label>
+<input id="file" type="file" accept="image/*">
+<button id="submit" type="button">submit</button>
+<script>
+{
+const file = document.getElementById("file"), frame = document.getElementById("frame"), prev = document.getElementById("preview"), sub = document.getElementById("submit");
+let data = "";
+file.addEventListener("change", function () {
+  const f = file.files && file.files[0]; if (!f) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = function () {
+    /* the picture is reduced in the visitor's own browser; it is never sent anywhere */
+    const m = 1400, k = Math.min(1, m / Math.max(im.width, im.height));
+    const c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+    c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+    data = c.toDataURL("image/jpeg", 0.88);
+    prev.src = data; frame.classList.add("has"); sub.classList.add("on");
+    URL.revokeObjectURL(url);
+  };
+  im.src = url;
+});
+sub.addEventListener("click", function () {
+  if (!data) return;
+  try { sessionStorage.setItem("shred", data); } catch (e) { return; }
+  location.href = "shred/";
+});
+}
+</script>
+</body>
+</html>

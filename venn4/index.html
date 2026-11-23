@@ -63,26 +63,26 @@ function step(now) {
   });
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
-  g.lineWidth = 1.5; g.strokeStyle = "#808080";
+  g.lineWidth = 1.5; g.strokeStyle = "#333333";
   g.strokeRect(X0, Y0, S, S);
   const p = circles.map(function (c, k) { const q = new Path2D(); q.arc(X0 + c.x * S, Y0 + c.y * S, radius(k) * S, 0, Math.PI * 2); return q; });
-  g.save(); g.clip(p[0]); g.fillStyle = "#808080"; g.fill(p[1]); g.restore();
-  g.strokeStyle = "#e6e6e6"; g.lineWidth = 1.5;
+  g.save(); g.clip(p[0]); g.fillStyle = "#4d4d4d"; g.fill(p[1]); g.restore();
+  g.strokeStyle = "#333333"; g.lineWidth = 1.5;
   p.forEach(function (q, k) {
     const out = new Path2D(); out.rect(0, 0, W, H); out.addPath(p[1 - k]);
     g.save(); g.clip(out, "evenodd"); g.stroke(q); g.restore();
   });
-  g.fillStyle = "#e6e6e6"; g.font = "14px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#333333"; g.font = "14px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
   circles.forEach(function (c) { g.fillText(c.word, X0 + c.x * S, Y0 + c.y * S); });
   /* you beside its two rows, me beside its two */
-  g.font = "13px Helvetica, Arial, sans-serif"; g.textAlign = "right";
+  g.font = "13px Helvetica, Arial, sans-serif"; g.textAlign = "center";
   ["you", "me"].forEach(function (w, k) {
-    g.fillStyle = "#666666";
-    g.fillText(w, X0 - 18, (rowY(k * 2) + rowY(k * 2 + 1)) / 2);
+    g.fillStyle = "#333333";
+    g.fillText(w, X0 + S / 2, (rowY(k * 2) + rowY(k * 2 + 1)) / 2);
   });
-  /* four rows of eleven dots in one muted 30% gray; the setting is a 55% gray; the middle is an open circle */
+  /* four rows of eleven dots in one muted 20% gray; the setting is a 55% gray; the middle is an open circle */
   scales.forEach(function (sc, i) {
-    const dy = rowY(i), base = "#4d4d4d";
+    const dy = rowY(i), base = "#333333";
     for (let j = 0; j <= 10; j++) {
       const x = X0 + S * j / 10, on = j === sc.z;
       g.beginPath(); g.arc(x, dy, 5, 0, Math.PI * 2);

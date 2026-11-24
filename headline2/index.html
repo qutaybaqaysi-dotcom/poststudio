@@ -107,7 +107,8 @@ lastSize = size;
 /* weight follows size: larger headlines fall a little faster and strike harder */
 var d = (34 - size) / 19;
 /* the type scales with the screen, a desktop or a large display gets larger headlines than a phone, though not the same proportion, since they are different screens */
-var SC = Math.max(1, 0.6825 * Math.min(2.6, Math.sqrt(innerWidth * innerHeight / (390 * 700))));
+/* on a phone the type is 5% smaller than the base sizes */
+var SC = Math.max(0.95, 0.6825 * Math.min(2.6, Math.sqrt(innerWidth * innerHeight / (390 * 700))));
 size = size * SC;
 el.style.fontSize = size + "px";
 el.style.maxWidth = Math.min(innerWidth * 0.64, 760 * SC) + "px";
@@ -148,7 +149,7 @@ items.push(it);
 setTimeout(spawnHeadline, 300);
 }
 
-function detach(span, it) {
+function detach(span, it, drop) {
 var b = span.getBoundingClientRect();
 var el = document.createElement("div");
 el.className = "l";
@@ -165,8 +166,8 @@ el: el, op: it.op, size: it.size, ch: span.textContent,
 w: b.width, h: b.height,
 x: b.left, y: b.top,
 /* the crash carries the headline's weight: a large, bright one strikes hard and scatters; a small, dim one settles softly */
-vy: -r(0, 30 + 170 * (1 - it.d)) * it.sc, g: r(500, 800) * it.sc, ramp: 0.05, age: 0, vx: r(-1, 1) * (25 + 120 * (1 - it.d)) * it.sc, ax: 0,
-rot: 0, vrot: r(-1, 1) * (70 + 330 * (1 - it.d)),
+vy: drop ? it.vy * r(1, 1.6) : -r(0, 30 + 170 * (1 - it.d)) * it.sc, g: r(500, 800) * it.sc, ramp: 0.05, age: 0, vx: r(-1, 1) * (drop ? 18 : 25 + 120 * (1 - it.d)) * it.sc, ax: 0,
+rot: 0, vrot: r(-1, 1) * (drop ? 90 : 70 + 330 * (1 - it.d)),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
 }
@@ -249,9 +250,16 @@ var sp = it.letters[q];
 if (sp.__d) continue;
 var rb = sp.getBoundingClientRect();
 var under = surfaceAt(rb.left, rb.right);
-if (rb.bottom >= under) detach(sp, it);
+if (rb.bottom >= under) { detach(sp, it); it.hit = true; }
 else if (under - rb.bottom < 22 && Math.random() < 0.004) detach(sp, it);
 }
+}
+/* once a headline has struck, the rest of it loses its hold: a few letters a frame let go and drop under gravity, so no piece is left drifting in the air */
+if (it.hit) {
+  for (var q3 = 0, n3 = 0; q3 < it.letters.length && n3 < 3; q3++) {
+    var s3 = it.letters[q3];
+    if (!s3.__d) { detach(s3, it, true); n3++; }
+  }
 }
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";
 if (it.count >= it.letters.length) {

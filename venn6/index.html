@@ -24,7 +24,7 @@ const cv = document.getElementById("c"), g = cv.getContext("2d");
 let W, H, dpr;
 /* the field the circles move in, the line under it, and the dots */
 let FX, FY, FW, FH, U, LINE, DX0, DS, TOP = 0;
-/* the two walls: they start at the screen edges, full screen; the viewer drags each one in, but no closer than the inner limit */
+/* the two walls: they start at the inner limit; the viewer drags each one out, as far as the screen edge */
 let WL = 0, WR = 0, LIM0 = 0, LIM1 = 0, held = null, sized = false;
 /* four scales, 0 to 10, 5 the middle: each person has a speed and a size */
 const scales = [
@@ -50,7 +50,8 @@ function size() {
   U = Math.min(W, FH);
   const inner = Math.min(FH, W * 0.75);
   LIM0 = (W - inner) / 2; LIM1 = (W + inner) / 2;
-  if (!sized) { WL = 1; WR = W - 1; sized = true; }
+  /* the piece opens with the walls all the way in; every move the viewer makes gives the circles more room */
+  if (!sized) { WL = LIM0; WR = LIM1; sized = true; }
   WL = Math.max(1, Math.min(WL, LIM0)); WR = Math.min(W - 1, Math.max(WR, LIM1));
   FX = WL; FW = WR - WL;
   DS = Math.min(W * 0.86, 420); DX0 = (W - DS) / 2;

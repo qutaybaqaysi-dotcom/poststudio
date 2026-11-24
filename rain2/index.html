@@ -54,7 +54,7 @@ function spawn() {
   var z = Math.pow(Math.random(), 0.8);
   var d = {
     el: el, word: word, w: el.offsetWidth, h: el.offsetHeight,
-    X: r(-0.55, 0.55), Y: 0, z: z,
+    X: r(-0.55, 0.55), xf: r(-0.12, 1.12), Y: 0, z: z,
     vy: r(0.035, 0.075), vz: r(-0.025, 0.025),
     sway: r(0.01, 0.035), phase: r(0, 6.28), freq: r(0.15, 0.4),
     rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: 0,
@@ -97,8 +97,8 @@ function frame(now) {
     d.rot = d.rot0 + d.ramp * Math.sin(T * d.rfreq + d.phase);
     d.fy += d.vfy * dt;
     var s = 1 / (1 + d.z * DEPTH);
-    var X = d.X + d.sway * Math.sin(T * d.freq + d.phase);
-    var sx = cx + X * W * s, sy = cy + d.Y * U * s;
+    /* each word falls at its own place anywhere across the frame, even half outside its edges; depth only makes it smaller and dimmer */
+    var sx = d.xf * W + d.sway * Math.sin(T * d.freq + d.phase) * W * s, sy = cy + d.Y * U * s;
     if (sy - d.h * s > H + 20) { d.el.remove(); drops.splice(i, 1); continue; }
     var near = 1 - d.z;
     var blur = Math.round(d.bl / s * 10) / 10;

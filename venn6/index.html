@@ -25,16 +25,13 @@ let W, H, dpr;
 /* the field the circles move in, the line under it, and the dots */
 let FX, FY, FW, FH, U, LINE, DX0, DS, TOP = 0;
 /* the two walls: they start at the inner limit; the viewer drags each one out, as far as the screen edge */
-/* a single dot under the rows opens the piece full screen, where the browser allows it (desktop) */
-const FS = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+/* the dot under the rows begins again: both circles back to the center. A click anywhere opens full screen, where the browser allows it */
 function fsY() { return rowY(3) + ROW * 1.4; }
-function onFs(e) { return FS && Math.hypot(e.clientX - (DX0 + DS / 2), e.clientY - fsY()) < 14; }
-function toggleFs() {
+function onFs(e) { return Math.hypot(e.clientX - (DX0 + DS / 2), e.clientY - fsY()) < 14; }
+function openFs() {
   const de = document.documentElement;
-  try {
-    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
-    else { (de.requestFullscreen || de.webkitRequestFullscreen).call(de); }
-  } catch (err) {}
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  try { const p = (de.requestFullscreen || de.webkitRequestFullscreen).call(de); if (p && p.catch) p.catch(function () {}); } catch (err) {}
 }
 let WL = 0, WR = 0, LIM0 = 0, LIM1 = 0, held = null, sized = false;
 /* four scales, 0 to 10, 5 the middle: each person has a speed and a size */
@@ -53,7 +50,7 @@ function size() {
   dpr = window.devicePixelRatio || 1;
   W = innerWidth; H = innerHeight;
   cv.width = W * dpr; cv.height = H * dpr;
-  const block = ROW * 4 + 10 + (FS ? ROW * 1.4 : 0);
+  const block = ROW * 4 + 10 + ROW * 1.4;
   TOP = H - block - Math.max(30, H * 0.06);
   LINE = TOP - 28;
   FY = 0; FH = LINE;
@@ -81,7 +78,7 @@ function wallAt(e) {
   return null;
 }
 cv.addEventListener("pointerdown", function (e) {
-  if (onFs(e)) return;
+  if (onFs(e)) { begin(); return; }
   held = wallAt(e);
   if (held) { cv.setPointerCapture(e.pointerId); return; }
   const i = rowAt(e);
@@ -93,7 +90,7 @@ cv.addEventListener("pointermove", function (e) {
   if (held === "R") { WR = Math.min(W - 1, Math.max(e.clientX, LIM1)); FW = WR - WL; }
   cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : (rowAt(e) >= 0 || onFs(e)) ? "pointer" : "default";
 });
-cv.addEventListener("click", function (e) { if (onFs(e)) toggleFs(); });
+cv.addEventListener("click", openFs);
 function release() { if (held) tickFade = 1; held = null; }
 let tickFade = 0;
 cv.addEventListener("pointerup", release);
@@ -153,10 +150,20 @@ function step(now) {
       else { g.fillStyle = on ? "#666666" : base; g.fill(); }
     }
   });
-  if (FS) { g.beginPath(); g.arc(DX0 + DS / 2, fsY(), 6, 0, Math.PI * 2); g.fillStyle = (document.fullscreenElement || document.webkitFullscreenElement) ? "#666666" : "#333333"; g.fill(); }
+  g.beginPath(); g.arc(DX0 + DS / 2, fsY(), 6, 0, Math.PI * 2); g.fillStyle = "#333333"; g.fill();
   requestAnimationFrame(step);
 }
+/* the beginning: both circles at the center, side by side, just touching, each setting off toward the other on its own random line, level, rising or falling, but always across the other's path */
+function begin() {
+  const gap = (radius(0) + radius(1)) * U / FW;
+  const y = 0.5;
+  circles[0].x = 0.5 - gap / 2; circles[0].y = y;
+  circles[1].x = 0.5 + gap / 2; circles[1].y = y;
+  circles[0].a = (Math.random() - 0.5) * 1.6;
+  circles[1].a = Math.PI + (Math.random() - 0.5) * 1.6;
+}
 size();
+begin();
 addEventListener("resize", size);
 requestAnimationFrame(step);
 }

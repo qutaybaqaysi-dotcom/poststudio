@@ -77,6 +77,8 @@ var nowT = performance.now();
 /* a slow feed: the next headline enters once the last has moved down its own small gap, about half an inch, a little different each time */
 if ((prev && prev.y < prev.gap) || loose.length > 400 || visTop(0, innerWidth) > innerHeight * 0.72) { setTimeout(spawnHeadline, 50); return; }
 lastSpawn = nowT;
+/* one front page, one corpse: every headline falls once, then the piece rests */
+if (heads.length && next >= heads.length) return;
 if (heads.length) {
 var rank = next % heads.length;
 var text = heads[rank];

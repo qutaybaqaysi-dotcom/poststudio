@@ -78,7 +78,8 @@ function wallAt(e) {
   return null;
 }
 cv.addEventListener("pointerdown", function (e) {
-  if (onFs(e)) { begin(); return; }
+  /* begin again: every dial back to the middle, both circles back to the center */
+  if (onFs(e)) { scales.forEach(function (sc) { sc.z = 5; }); begin(); return; }
   held = wallAt(e);
   if (held) { cv.setPointerCapture(e.pointerId); return; }
   const i = rowAt(e);

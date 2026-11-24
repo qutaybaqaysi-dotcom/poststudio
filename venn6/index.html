@@ -94,7 +94,8 @@ cv.addEventListener("pointermove", function (e) {
   cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : (rowAt(e) >= 0 || onFs(e)) ? "pointer" : "default";
 });
 cv.addEventListener("click", function (e) { if (onFs(e)) toggleFs(); });
-function release() { held = null; }
+function release() { if (held) tickFade = 1; held = null; }
+let tickFade = 0;
 cv.addEventListener("pointerup", release);
 cv.addEventListener("pointercancel", release);
 let last = performance.now();
@@ -115,6 +116,15 @@ function step(now) {
   /* one line across the whole screen, under the circles */
   g.lineWidth = 1.5; g.strokeStyle = "#333333";
   g.beginPath(); g.moveTo(0, LINE); g.lineTo(W, LINE); g.stroke();
+  /* while a wall is held, short ticks an inch apart hang from the line across the room given beyond the limit; on release they fade */
+  if (!held && tickFade > 0) tickFade = Math.max(0, tickFade - dt / 0.8);
+  const ta = held ? 1 : tickFade;
+  if (ta > 0) {
+    g.save(); g.globalAlpha = ta; g.strokeStyle = "#333333"; g.lineWidth = 1; g.beginPath();
+    for (let x = LIM0 - 96; x >= WL; x -= 96) { g.moveTo(x, LINE); g.lineTo(x, LINE + 14); }
+    for (let x = LIM1 + 96; x <= WR; x += 96) { g.moveTo(x, LINE); g.lineTo(x, LINE + 14); }
+    g.stroke(); g.restore();
+  }
   /* the walls rise from the line */
   g.beginPath(); g.moveTo(WL, 0); g.lineTo(WL, LINE); g.moveTo(WR, 0); g.lineTo(WR, LINE); g.stroke();
   const p = circles.map(function (c, k) { const q = new Path2D(); q.arc(FX + c.x * FW, FY + c.y * FH, radius(k) * U, 0, Math.PI * 2); return q; });

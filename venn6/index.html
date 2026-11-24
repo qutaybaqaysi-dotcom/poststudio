@@ -25,6 +25,17 @@ let W, H, dpr;
 /* the field the circles move in, the line under it, and the dots */
 let FX, FY, FW, FH, U, LINE, DX0, DS, TOP = 0;
 /* the two walls: they start at the inner limit; the viewer drags each one out, as far as the screen edge */
+/* a single dot under the rows opens the piece full screen, where the browser allows it (desktop) */
+const FS = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function fsY() { return rowY(3) + ROW * 1.4; }
+function onFs(e) { return FS && Math.hypot(e.clientX - (DX0 + DS / 2), e.clientY - fsY()) < 14; }
+function toggleFs() {
+  const de = document.documentElement;
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+    else { (de.requestFullscreen || de.webkitRequestFullscreen).call(de); }
+  } catch (err) {}
+}
 let WL = 0, WR = 0, LIM0 = 0, LIM1 = 0, held = null, sized = false;
 /* four scales, 0 to 10, 5 the middle: each person has a speed and a size */
 const scales = [
@@ -42,7 +53,7 @@ function size() {
   dpr = window.devicePixelRatio || 1;
   W = innerWidth; H = innerHeight;
   cv.width = W * dpr; cv.height = H * dpr;
-  const block = ROW * 4 + 10;
+  const block = ROW * 4 + 10 + (FS ? ROW * 1.4 : 0);
   TOP = H - block - Math.max(30, H * 0.06);
   LINE = TOP - 28;
   FY = 0; FH = LINE;
@@ -70,6 +81,7 @@ function wallAt(e) {
   return null;
 }
 cv.addEventListener("pointerdown", function (e) {
+  if (onFs(e)) { toggleFs(); return; }
   held = wallAt(e);
   if (held) { cv.setPointerCapture(e.pointerId); return; }
   const i = rowAt(e);
@@ -79,7 +91,7 @@ cv.addEventListener("pointerdown", function (e) {
 cv.addEventListener("pointermove", function (e) {
   if (held === "L") { WL = Math.max(1, Math.min(e.clientX, LIM0)); FX = WL; FW = WR - WL; }
   if (held === "R") { WR = Math.min(W - 1, Math.max(e.clientX, LIM1)); FW = WR - WL; }
-  cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : rowAt(e) >= 0 ? "pointer" : "default";
+  cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : (rowAt(e) >= 0 || onFs(e)) ? "pointer" : "default";
 });
 function release() { held = null; }
 cv.addEventListener("pointerup", release);
@@ -114,11 +126,11 @@ function step(now) {
   /* the words are the same gray as the overlap, so they vanish where the circles meet */
   g.fillStyle = "#4d4d4d"; g.font = "14px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
   circles.forEach(function (c) { g.fillText(c.word, FX + c.x * FW, FY + c.y * FH); });
-  /* you above its two rows, me above its two, at the left edge */
-  g.font = "13px Helvetica, Arial, sans-serif"; g.textAlign = "left";
+  /* you between its two rows, me between its two, in the middle */
+  g.font = "13px Helvetica, Arial, sans-serif"; g.textAlign = "center";
   ["you", "me"].forEach(function (w, k) {
     g.fillStyle = "#333333";
-    g.fillText(w, DX0 - 5, rowY(k * 2) - ROW * 0.65);
+    g.fillText(w, DX0 + DS / 2, (rowY(k * 2) + rowY(k * 2 + 1)) / 2);
   });
   /* four rows of eleven dots in one muted 20% gray; the setting is a 40% gray; the middle is an open circle */
   scales.forEach(function (sc, i) {
@@ -130,6 +142,7 @@ function step(now) {
       else { g.fillStyle = on ? "#666666" : base; g.fill(); }
     }
   });
+  if (FS) { g.beginPath(); g.arc(DX0 + DS / 2, fsY(), 6, 0, Math.PI * 2); g.fillStyle = (document.fullscreenElement || document.webkitFullscreenElement) ? "#666666" : "#333333"; g.fill(); }
   requestAnimationFrame(step);
 }
 size();

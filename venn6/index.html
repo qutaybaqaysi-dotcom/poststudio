@@ -81,7 +81,7 @@ function wallAt(e) {
   return null;
 }
 cv.addEventListener("pointerdown", function (e) {
-  if (onFs(e)) { toggleFs(); return; }
+  if (onFs(e)) return;
   held = wallAt(e);
   if (held) { cv.setPointerCapture(e.pointerId); return; }
   const i = rowAt(e);
@@ -93,6 +93,7 @@ cv.addEventListener("pointermove", function (e) {
   if (held === "R") { WR = Math.min(W - 1, Math.max(e.clientX, LIM1)); FW = WR - WL; }
   cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : (rowAt(e) >= 0 || onFs(e)) ? "pointer" : "default";
 });
+cv.addEventListener("click", function (e) { if (onFs(e)) toggleFs(); });
 function release() { held = null; }
 cv.addEventListener("pointerup", release);
 cv.addEventListener("pointercancel", release);

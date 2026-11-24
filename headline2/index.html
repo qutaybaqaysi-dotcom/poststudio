@@ -128,13 +128,16 @@ el.appendChild(wd);
 if (w < words.length - 1) el.appendChild(document.createTextNode(" "));
 }
 document.body.appendChild(el);
-var maxX = Math.max(10, innerWidth - el.offsetWidth - 20);
+/* a long word must never run off the screen: if the headline is wider than the screen allows, its type steps down until it fits */
+var fitW = innerWidth - 24;
+while (el.scrollWidth > Math.min(fitW, parseFloat(el.style.maxWidth) + 2) && size > 10) { size *= 0.94; el.style.fontSize = size + "px"; }
+var maxX = Math.max(10, innerWidth - Math.max(el.offsetWidth, el.scrollWidth) - 20);
 var it = {
 el: el, size: size, op: op,
 x: r(Math.min(20, maxX), maxX),
 y: -el.offsetHeight - 10,
 h: el.offsetHeight,
-w: el.offsetWidth,
+w: Math.max(el.offsetWidth, el.scrollWidth),
 /* near headlines fall a little faster than far ones; the gap behind each is small and never the same, from almost touching to a little over half an inch */
 vy: (FEED || (FEED = innerHeight / 20)) * (1.08 - 0.16 * d),
 gap: Math.random() < 0.12 ? r(80, 110) : 8 + 72 * Math.pow(Math.random(), 1.3),

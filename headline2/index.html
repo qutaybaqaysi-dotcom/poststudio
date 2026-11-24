@@ -49,7 +49,7 @@ function r(a, b) { return a + Math.random() * (b - a); }
 /* every headline falls at the same slow speed, so the feed keeps its spacing */
 function speed(it) { return it.vy; }
 var FEED = 0;
-var lastDepth = 0, lastOp = 0.95, lastSize = 34, tones = null;
+var lastDepth = 0, lastOp = 0.843, lastSize = 34, tones = null;
 function visTop(x0, x1) {
 var t = 0;
 for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
@@ -90,7 +90,7 @@ el.className = "h";
 /* size and brightness are set apart, so a large headline can be dark and a small one bright. The grays are dealt evenly from 90% down to about 12%, one per headline, so the whole scale appears; the first is the largest at 90%, and no headline matches its neighbor in gray or size */
 if (!tones) {
   tones = [];
-  for (var t = 0; t < heads.length; t++) tones.push(0.95 - (0.95 - 0.13) * t / Math.max(1, heads.length - 1));
+  for (var t = 0; t < heads.length; t++) tones.push(0.843 - (0.843 - 0.13) * t / Math.max(1, heads.length - 1));
   var first = tones.shift(); shuffle(tones); tones.unshift(first);
 }
 var op;
@@ -98,7 +98,7 @@ if (next === 1) op = tones.shift();
 else {
   var pick = 0;
   for (var q2 = 0; q2 < tones.length; q2++) { if (Math.abs(tones[q2] - lastOp) >= 0.15) { pick = q2; break; } }
-  op = tones.length ? tones.splice(pick, 1)[0] : r(0.13, 0.95);
+  op = tones.length ? tones.splice(pick, 1)[0] : r(0.13, 0.843);
 }
 lastOp = op;
 var size = next === 1 ? 34 : (rank < 3 ? r(26, 34) : r(15, 32));

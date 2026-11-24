@@ -214,7 +214,9 @@ var surf = innerHeight - pileMax;
 if (!it.loosened && it.y + it.h > surfaceAt(it.x, it.x + it.w) - 24) {
   it.loosened = true;
   var few = Math.max(1, Math.round(it.letters.length * 0.06));
-  shuffle(it.letters.slice()).slice(0, few).forEach(function (s1) { if (!s1.__d) detach(s1, it); });
+  /* only from the bottom line, the part about to touch */
+  var low = it.letters.filter(function (s1) { return s1.getBoundingClientRect().bottom > it.y + it.h - it.size * 1.2; });
+  shuffle(low).slice(0, few).forEach(function (s1) { if (!s1.__d) detach(s1, it); });
 }
 if (it.y + it.h > innerHeight - pileMax) {
 for (var q = it.gone; q < it.letters.length; q++) {

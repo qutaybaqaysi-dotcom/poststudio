@@ -204,9 +204,9 @@ if (order.length) { order[0].y += speed(order[0]) * dt; order[0].moved = true; }
 for (var i = items.length - 1; i >= 0; i--) {
 var it = items[i];
 it.moved = false;
-/* it comes apart in mid air, above the pile, and what is left breaks on the pile */
+/* it falls whole all the way down, starts to unravel just before it hits, and crashes on the bottom or the pile */
 var surf = innerHeight - pileMax;
-var zs = surf * 0.42, ze = surf * 0.85;
+var zs = surf - Math.max(50, surf * 0.12), ze = surf;
 var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / (ze - zs)));
 var target = Math.round(Math.pow(progress, 1.6) * it.letters.length);
 while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }

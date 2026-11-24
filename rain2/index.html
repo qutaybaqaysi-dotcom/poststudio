@@ -48,7 +48,7 @@ function spawn() {
   var el = document.createElement("div");
   el.className = "w";
   for (var c = 0; c < word.length; c++) { var sp = document.createElement("span"); sp.textContent = word[c]; el.appendChild(sp); }
-  var fs = (word === "fragments" || word === "experiment") ? 30 : BASE;
+  var fs = (word === "fragments" || word === "experiment" || word === "everywhere") ? 30 : BASE;
   el.style.fontSize = fs + "px";
   document.body.appendChild(el);
   var z = Math.pow(Math.random(), 0.8);

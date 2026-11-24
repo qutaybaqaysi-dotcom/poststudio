@@ -218,7 +218,7 @@ if (sp.__d) continue;
 var rb = sp.getBoundingClientRect();
 var under = surfaceAt(rb.left, rb.right);
 if (rb.bottom >= under) detach(sp, it);
-else if (under - rb.bottom < 22 && Math.random() < 0.012) detach(sp, it);
+else if (under - rb.bottom < 22 && Math.random() < 0.004) detach(sp, it);
 }
 }
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";

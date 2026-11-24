@@ -210,20 +210,15 @@ var it = items[i];
 it.moved = false;
 /* it falls whole all the way down, starts to unravel just before it hits, and crashes on the bottom or the pile */
 var surf = innerHeight - pileMax;
-/* just before contact a few letters loosen, very slightly; the real break is the impact, letter by letter, where it strikes */
-if (!it.loosened && it.y + it.h > surfaceAt(it.x, it.x + it.w) - 24) {
-  it.loosened = true;
-  var few = Math.max(1, Math.round(it.letters.length * 0.06));
-  /* only from the bottom line, the part about to touch */
-  var low = it.letters.filter(function (s1) { return s1.getBoundingClientRect().bottom > it.y + it.h - it.size * 1.2; });
-  shuffle(low).slice(0, few).forEach(function (s1) { if (!s1.__d) detach(s1, it); });
-}
-if (it.y + it.h > innerHeight - pileMax) {
-for (var q = it.gone; q < it.letters.length; q++) {
+/* each letter breaks where it strikes the bottom or the pile; a few loosen very slightly in the last moment before their own contact */
+if (it.y + it.h > innerHeight - pileMax - 22) {
+for (var q = 0; q < it.letters.length; q++) {
 var sp = it.letters[q];
 if (sp.__d) continue;
 var rb = sp.getBoundingClientRect();
-if (rb.bottom >= surfaceAt(rb.left, rb.right)) detach(sp, it);
+var under = surfaceAt(rb.left, rb.right);
+if (rb.bottom >= under) detach(sp, it);
+else if (under - rb.bottom < 22 && Math.random() < 0.012) detach(sp, it);
 }
 }
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";

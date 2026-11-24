@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<meta property="og:url" content="https://poststudio.org/headline2/">
+<meta property="og:image" content="https://poststudio.org/headline/og.jpg?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body { perspective: 800px; }
+.h { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; line-height: 1.15; max-width: min(64vw, 760px); will-change: transform; user-select: none; }
+.h .wd { display: inline-block; white-space: pre; }
+.l { position: absolute; left: 0; top: 0; font-family: Helvetica, Arial, sans-serif; font-weight: 700; color: #f2f2f2; white-space: pre; will-change: transform; user-select: none; transform-origin: 50% 50%; }
+canvas { position: absolute; left: 0; top: 0; }
+body.idle { cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="pile"></canvas>
+<script>
+var pile = document.getElementById("pile");
+var ctx = pile.getContext("2d");
+var dpr = window.devicePixelRatio || 1;
+var COL = 4;
+var heights = [];
+var vis = [];
+function setupPile() {
+pile.width = innerWidth * dpr;
+pile.height = innerHeight * dpr;
+pile.style.width = innerWidth + "px";
+pile.style.height = innerHeight + "px";
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+heights = new Array(Math.ceil(innerWidth / COL) + 1).fill(0);
+vis = new Array(heights.length).fill(0);
+}
+setupPile();
+window.addEventListener("resize", setupPile);
+function gray(op) { var v = Math.round(242 * op); return "rgb(" + v + "," + v + "," + v + ")"; }
+var heads = [];
+var next = 0;
+var lastSpawn = -1e9;
+var items = [];
+var loose = [];
+function r(a, b) { return a + Math.random() * (b - a); }
+function speed(it) { return it.vy * (1 - 0.75 * it.gone / it.letters.length); }
+function visTop(x0, x1) {
+var t = 0;
+for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
+return t;
+}
+function surfaceAt(x0, x1) { return innerHeight - visTop(x0, x1); }
+
+function bottomFirst(list) {
+list.forEach(function (s) { s.__k = s.offsetTop * 1000 + Math.random() * 999; });
+return list.sort(function (a, b) { return b.__k - a.__k; });
+}
+
+function shuffle(list) {
+for (var i = list.length - 1; i > 0; i--) {
+var j = Math.floor(Math.random() * (i + 1));
+var t = list[i]; list[i] = list[j]; list[j] = t;
+}
+return list;
+}
+
+function spawnHeadline() {
+var prev = items[items.length - 1];
+var nowT = performance.now();
+/* one headline at a time: the next waits until the last has broken apart; the mountain stops growing at three quarters of the screen */
+if (items.length > 0 || nowT - lastSpawn < 1500 || loose.length > 300 || visTop(0, innerWidth) > innerHeight * 0.72) { setTimeout(spawnHeadline, 400); return; }
+lastSpawn = nowT;
+if (heads.length) {
+var rank = next % heads.length;
+var text = heads[rank];
+next++;
+var el = document.createElement("div");
+el.className = "h";
+var size = rank < 3 ? r(30, 38) : r(24, 30);
+var levels = [0.95, 0.5, 0.8, 0.38, 0.9, 0.62];
+var op = levels[(next - 1) % levels.length];
+el.style.fontSize = size + "px";
+el.style.color = gray(op);
+el.style.transform = "translate(-9999px,-9999px)";
+var words = text.split(" ");
+for (var w = 0; w < words.length; w++) {
+var wd = document.createElement("span");
+wd.className = "wd";
+for (var c = 0; c < words[w].length; c++) {
+var s = document.createElement("span");
+s.className = "c";
+s.textContent = words[w][c];
+wd.appendChild(s);
+}
+el.appendChild(wd);
+if (w < words.length - 1) el.appendChild(document.createTextNode(" "));
+}
+document.body.appendChild(el);
+var maxX = Math.max(10, innerWidth - el.offsetWidth - 20);
+var it = {
+el: el, size: size, op: op,
+x: r(Math.min(20, maxX), maxX),
+y: -el.offsetHeight - 10,
+h: el.offsetHeight,
+w: el.offsetWidth,
+vy: (innerHeight / 3) / r(7, 11),
+letters: bottomFirst(Array.prototype.slice.call(el.querySelectorAll(".c"))),
+gone: 0,
+count: 0
+};
+items.push(it);
+}
+setTimeout(spawnHeadline, 300);
+}
+
+function detach(span, it) {
+var b = span.getBoundingClientRect();
+var el = document.createElement("div");
+el.className = "l";
+el.textContent = span.textContent;
+el.style.fontSize = it.size + "px";
+el.style.color = gray(it.op);
+el.style.transform = "translate3d(" + b.left + "px," + b.top + "px,0)";
+document.body.appendChild(el);
+span.style.visibility = "hidden";
+span.__d = true;
+it.count++;
+loose.push({
+el: el, op: it.op, size: it.size, ch: span.textContent,
+w: b.width, h: b.height,
+x: b.left, y: b.top,
+vy: it.vy * 0.3 + r(-14, 6), g: r(8, 18), ramp: r(2, 4), age: 0, vx: r(-26, 26), ax: 0,
+rot: 0, vrot: r(-20, 20),
+fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
+});
+}
+
+function spanTop(c0, c1) {
+var t = 0;
+for (var c = Math.max(0, c0); c <= Math.min(heights.length - 1, c1); c++) if (heights[c] > t) t = heights[c];
+return t;
+}
+function settle(p) {
+var n = Math.max(1, Math.round(p.w / COL));
+var c0 = Math.max(0, Math.floor(p.x / COL));
+var maxC = heights.length - n;
+if (c0 > maxC) c0 = maxC;
+for (var step = 0; step < 400; step++) {
+var here = spanTop(c0, c0 + n - 1);
+var left = c0 > 0 ? spanTop(c0 - 1, c0 + n - 2) : Infinity;
+var right = c0 < maxC ? spanTop(c0 + 1, c0 + n) : Infinity;
+var low = Math.min(left, right);
+if (low >= here - 3) break;
+c0 += (left <= right) ? -1 : 1;
+}
+return c0;
+}
+function draw(p) {
+ctx.save();
+ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+ctx.rotate(p.rot * Math.PI / 180);
+var sx = Math.cos(p.fy * Math.PI / 180);
+if (Math.abs(sx) < 0.08) sx = sx < 0 ? -0.08 : 0.08;
+ctx.scale(sx, 1);
+ctx.fillStyle = gray(p.op);
+ctx.font = "700 " + p.size + "px Helvetica, Arial, sans-serif";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText(p.ch, 0, 0);
+ctx.restore();
+}
+function land(p) {
+var n = Math.max(1, Math.round(p.w / COL));
+var c0 = settle(p);
+var top = spanTop(c0, c0 + n - 1);
+var rise = top + p.h * 0.35;
+var seen = top + p.h * 0.85;
+for (var c = c0; c < c0 + n && c < heights.length; c++) { if (heights[c] < rise) heights[c] = rise; if (vis[c] < seen) vis[c] = seen; }
+var tx = c0 * COL, ty = innerHeight - top - p.h;
+var dist = Math.sqrt((tx - p.x) * (tx - p.x) + (ty - p.y) * (ty - p.y));
+p.landing = { fx: p.x, fy0: p.y, tx: tx, ty: ty, t: 0, dur: 0.35 + dist / 70, vrot: p.vrot * 0.4 };
+}
+
+var last = performance.now();
+function frame(now) {
+var dt = Math.min(0.05, (now - last) / 1000);
+last = now;
+var third = innerHeight / 3;
+var pileMax = visTop(0, innerWidth);
+var order = items.slice().sort(function (a, b) { return b.y - a.y; });
+for (var o = 1; o < order.length; o++) {
+var ahead = order[o - 1], me = order[o];
+me.y += speed(me) * dt;
+if (ahead.gone < ahead.letters.length * 0.15) {
+var limit = ahead.y - me.h - 18;
+if (me.y > limit) me.y = limit;
+}
+me.moved = true;
+}
+if (order.length) { order[0].y += speed(order[0]) * dt; order[0].moved = true; }
+for (var i = items.length - 1; i >= 0; i--) {
+var it = items[i];
+it.moved = false;
+/* it comes apart in mid air, above the pile, and what is left breaks on the pile */
+var surf = innerHeight - pileMax;
+var zs = surf * 0.42, ze = surf * 0.85;
+var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / (ze - zs)));
+var target = Math.round(Math.pow(progress, 1.6) * it.letters.length);
+while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }
+if (it.y + it.h > innerHeight - pileMax) {
+for (var q = it.gone; q < it.letters.length; q++) {
+var sp = it.letters[q];
+if (sp.__d) continue;
+var rb = sp.getBoundingClientRect();
+if (rb.bottom >= surfaceAt(rb.left, rb.right)) detach(sp, it);
+}
+}
+it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";
+if (it.count >= it.letters.length) {
+it.el.remove();
+items.splice(i, 1);
+}
+}
+for (var k = loose.length - 1; k >= 0; k--) {
+var p = loose[k];
+if (p.landing) {
+var L = p.landing;
+L.t += dt;
+var e = Math.min(1, L.t / L.dur);
+var ease = 1 - Math.pow(1 - e, 3);
+p.x = L.fx + (L.tx - L.fx) * ease;
+p.y = L.fy0 + (L.ty - L.fy0) * ease;
+p.rot += L.vrot * (1 - e) * dt;
+p.fy += p.vfy * 0.3 * (1 - e) * dt;
+p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
+if (e >= 1) { draw(p); p.el.remove(); loose.splice(k, 1); }
+continue;
+}
+p.age += dt;
+p.vy += p.g * Math.min(1, p.age / p.ramp) * dt;
+p.vx *= (1 - 0.25 * dt);
+p.x += p.vx * dt;
+p.y += p.vy * dt;
+if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); p.ax = Math.abs(p.ax); }
+if (p.x > innerWidth - p.w) { p.x = innerWidth - p.w; p.vx = -Math.abs(p.vx); p.ax = -Math.abs(p.ax); }
+p.rot += p.vrot * dt;
+p.fy += p.vfy * dt;
+var c0 = Math.max(0, Math.floor(p.x / COL)), c1 = Math.min(heights.length - 1, Math.floor((p.x + p.w) / COL));
+var top = 0;
+for (var c = c0; c <= c1; c++) if (heights[c] > top) top = heights[c];
+var surface = innerHeight - top;
+if (p.y + p.h >= surface) {
+if (p.y + p.h - surface <= p.h) { land(p); continue; }
+draw(p);
+p.el.remove();
+loose.splice(k, 1);
+continue;
+}
+p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
+}
+requestAnimationFrame(frame);
+}
+
+fetch("../headline/headlines.json?t=" + Date.now())
+.then(function (res) { return res.json(); })
+.then(function (data) {
+heads = (data.headlines || []).filter(function (t) { return t && t.length > 0; });
+spawnHeadline();
+})
+.catch(function () {});
+requestAnimationFrame(frame);
+// hidden door: a click anywhere opens full screen
+(function(){
+  var de = document.documentElement;
+  var req = de.requestFullscreen || de.webkitRequestFullscreen;
+  if (!req) return;
+  document.addEventListener('click', function(){
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try { var p = req.call(de); if (p && p.catch) p.catch(function(){}); } catch(e){}
+  });
+  var t;
+  function wake(){ document.body.classList.remove('idle'); clearTimeout(t);
+    if (document.fullscreenElement || document.webkitFullscreenElement) t = setTimeout(function(){ document.body.classList.add('idle'); }, 2000); }
+  document.addEventListener('mousemove', wake);
+  document.addEventListener('fullscreenchange', wake);
+  document.addEventListener('webkitfullscreenchange', wake);
+})();
+</script>
+</body>
+</html>

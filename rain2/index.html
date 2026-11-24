@@ -60,8 +60,11 @@ function spawn() {
     rot0: r(-10, 10), ramp: r(4, 10), rfreq: r(0.08, 0.2), rot: 0, fy: 0, vfy: 0,
     lastBlur: -1, lv: [1,2,3,3,4,4,5,5,6,6,7,7,8,8][Math.floor(Math.random() * 14)] / 10 * (word.length <= 5 ? 0.5 : word.length <= 8 ? 0.4 : 0.25) / 0.8, age: 0, fr: Math.random(),
     bl: Math.random() < 0.15 + 0.4 * z ? r(0.6, 2.2) : 0,
+    early: false,
     breakAt: (word === "enter" || word === "exit") ? 9 : Math.random() < 1 / 7 ? 9 : tri(0.33, 0.5, 0.75), broken: 0, nextBreak: 0, order: null
   };
+  /* about 1 word in 12 starts wearing away near the top, slowly */
+  if (word !== "enter" && word !== "exit" && Math.random() < 1 / 12) { d.early = true; d.breakAt = r(0.1, 0.25); }
   var U0 = Math.min(innerWidth, innerHeight), s0 = 1 / (1 + z * DEPTH);
   d.Y = (-innerHeight / 2 - d.h * s0 - 4) / (U0 * s0);
   if (word === "enter" || word === "exit") {
@@ -119,7 +122,7 @@ function frame(now) {
         sp.style.visibility = "hidden";
         bits.push({ el: le, x: lx, y: ly, s: s, w: le.offsetWidth, h: le.offsetHeight, vx: d.svx || 0, tvx: (d.svx || 0) + r(-9, 9) * s, vy: d.svy || d.vy * U * s, g: r(0.3, 1.2) * s, rot: d.rot, vrot: r(-12, 12), fy: d.fy, vfy: r(-20, 20), life: 0, span: r(9, 16), lum: d.lum });
         /* letters let go unevenly: mostly quick, sometimes a pause before the next */
-        d.nextBreak = T + (Math.random() < 0.3 ? r(0.8, 1.6) : r(0.08, 0.35));
+        d.nextBreak = T + (d.early ? r(1.2, 2.6) : Math.random() < 0.3 ? r(0.8, 1.6) : r(0.08, 0.35));
       }
       if (d.broken >= d.order.length) { d.el.remove(); drops.splice(i, 1); continue; }
     }

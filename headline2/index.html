@@ -234,7 +234,7 @@ var order = items.slice().sort(function (a, b) { return b.y - a.y; });
 for (var o = 1; o < order.length; o++) {
 var ahead = order[o - 1], me = order[o];
 me.y += speed(me) * dt;
-if (ahead.gone < ahead.letters.length * 0.15) {
+if (!me.hit && ahead.gone < ahead.letters.length * 0.15) {
 var limit = ahead.y - me.h - 6;
 if (me.y > limit) me.y = limit;
 }
@@ -257,13 +257,7 @@ if (rb.bottom >= under) { detach(sp, it); it.hit = true; }
 else if (under - rb.bottom < 22 && Math.random() < 0.004) detach(sp, it);
 }
 }
-/* once a headline has struck, the rest of it loses its hold: a few letters a frame let go and drop under gravity, so no piece is left drifting in the air */
-if (it.hit) {
-  for (var q3 = 0, n3 = 0; q3 < it.letters.length && n3 < 3; q3++) {
-    var s3 = it.letters[q3];
-    if (!s3.__d) { detach(s3, it, true); n3++; }
-  }
-}
+/* once a headline has struck, it keeps falling at its own speed, never held by the one ahead, so each word breaks only where it touches the pile */
 it.el.style.transform = "translate(" + it.x + "px," + it.y + "px)";
 if (it.count >= it.letters.length) {
 it.el.remove();

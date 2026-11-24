@@ -14,6 +14,7 @@
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; touch-action: manipulation; }
 canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+body.idle, body.idle canvas { cursor: none !important; }
 </style>
 </head>
 <body>
@@ -92,6 +93,10 @@ cv.addEventListener("pointermove", function (e) {
   cv.style.cursor = (held || wallAt(e)) ? "ew-resize" : (rowAt(e) >= 0 || onFs(e)) ? "pointer" : "default";
 });
 cv.addEventListener("click", openFs);
+/* the cursor fades from view after two seconds without movement, and returns when the mouse moves */
+let idleT;
+function wake() { document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(function () { if (!held) document.body.classList.add("idle"); }, 2000); }
+addEventListener("mousemove", wake); wake();
 function release() { if (held) tickFade = 1; held = null; }
 let tickFade = 0;
 cv.addEventListener("pointerup", release);

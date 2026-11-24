@@ -46,7 +46,9 @@ var lastSpawn = -1e9;
 var items = [];
 var loose = [];
 function r(a, b) { return a + Math.random() * (b - a); }
-function speed(it) { return it.vy * (1 - 0.75 * it.gone / it.letters.length); }
+/* every headline falls at the same slow speed, so the feed keeps its spacing */
+function speed(it) { return it.vy; }
+var FEED = 0;
 function visTop(x0, x1) {
 var t = 0;
 for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
@@ -71,7 +73,8 @@ function spawnHeadline() {
 var prev = items[items.length - 1];
 var nowT = performance.now();
 /* one headline at a time: the next waits until the last has broken apart; the mountain stops growing at three quarters of the screen */
-if (items.length > 0 || nowT - lastSpawn < 1500 || loose.length > 300 || visTop(0, innerWidth) > innerHeight * 0.72) { setTimeout(spawnHeadline, 400); return; }
+/* a slow feed: the next headline enters once the last has moved down its own small gap, about half an inch, a little different each time */
+if ((prev && prev.y < prev.gap) || loose.length > 400 || visTop(0, innerWidth) > innerHeight * 0.72) { setTimeout(spawnHeadline, 50); return; }
 lastSpawn = nowT;
 if (heads.length) {
 var rank = next % heads.length;
@@ -79,9 +82,9 @@ var text = heads[rank];
 next++;
 var el = document.createElement("div");
 el.className = "h";
-var size = rank < 3 ? r(30, 38) : r(24, 30);
-var levels = [0.95, 0.5, 0.8, 0.38, 0.9, 0.62];
-var op = levels[(next - 1) % levels.length];
+/* size and brightness follow the headline's place on the Times: the lead stories larger and brighter */
+var size = rank < 3 ? r(28, 34) : rank < 10 ? r(21, 25) : r(16, 19);
+var op = rank < 3 ? 0.95 : rank < 10 ? r(0.68, 0.8) : r(0.4, 0.55);
 el.style.fontSize = size + "px";
 el.style.color = gray(op);
 el.style.transform = "translate(-9999px,-9999px)";
@@ -106,7 +109,8 @@ x: r(Math.min(20, maxX), maxX),
 y: -el.offsetHeight - 10,
 h: el.offsetHeight,
 w: el.offsetWidth,
-vy: (innerHeight / 3) / r(7, 11),
+vy: FEED || (FEED = innerHeight / 20),
+gap: r(30, 70),
 letters: bottomFirst(Array.prototype.slice.call(el.querySelectorAll(".c"))),
 gone: 0,
 count: 0
@@ -132,8 +136,8 @@ loose.push({
 el: el, op: it.op, size: it.size, ch: span.textContent,
 w: b.width, h: b.height,
 x: b.left, y: b.top,
-vy: it.vy * 0.3 + r(-14, 6), g: r(8, 18), ramp: r(2, 4), age: 0, vx: r(-26, 26), ax: 0,
-rot: 0, vrot: r(-20, 20),
+vy: r(-120, 0), g: r(500, 800), ramp: 0.05, age: 0, vx: r(-70, 70), ax: 0,
+rot: 0, vrot: r(-260, 260),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
 }
@@ -206,10 +210,12 @@ var it = items[i];
 it.moved = false;
 /* it falls whole all the way down, starts to unravel just before it hits, and crashes on the bottom or the pile */
 var surf = innerHeight - pileMax;
-var zs = surf - Math.max(50, surf * 0.12), ze = surf;
-var progress = Math.min(1, Math.max(0, (it.y + it.h - zs) / (ze - zs)));
-var target = Math.round(Math.pow(progress, 1.6) * it.letters.length);
-while (it.gone < target) { var s0 = it.letters[it.gone]; it.gone++; if (!s0.__d) detach(s0, it); }
+/* just before contact a few letters loosen, very slightly; the real break is the impact, letter by letter, where it strikes */
+if (!it.loosened && it.y + it.h > surfaceAt(it.x, it.x + it.w) - 24) {
+  it.loosened = true;
+  var few = Math.max(1, Math.round(it.letters.length * 0.06));
+  shuffle(it.letters.slice()).slice(0, few).forEach(function (s1) { if (!s1.__d) detach(s1, it); });
+}
 if (it.y + it.h > innerHeight - pileMax) {
 for (var q = it.gone; q < it.letters.length; q++) {
 var sp = it.letters[q];

@@ -49,6 +49,7 @@ function r(a, b) { return a + Math.random() * (b - a); }
 /* every headline falls at the same slow speed, so the feed keeps its spacing */
 function speed(it) { return it.vy; }
 var FEED = 0;
+var lastDepth = 0;
 function visTop(x0, x1) {
 var t = 0;
 for (var c = Math.max(0, Math.floor(x0 / COL)); c <= Math.min(vis.length - 1, Math.floor(x1 / COL)); c++) if (vis[c] > t) t = vis[c];
@@ -83,8 +84,13 @@ next++;
 var el = document.createElement("div");
 el.className = "h";
 /* size and brightness follow the headline's place on the Times: the lead stories larger and brighter */
-var size = rank < 3 ? r(28, 34) : rank < 10 ? r(21, 25) : r(16, 19);
-var op = rank < 3 ? 0.95 : rank < 10 ? r(0.68, 0.8) : r(0.4, 0.55);
+/* depth: 0 is near, 1 is far. The Times' order leads, the lead stories tend near, but each headline steps forward or back from the one before, so no two neighbors match. The first is the largest, at 90% white. */
+var base = rank < 3 ? 0.12 : rank < 10 ? 0.4 : 0.62;
+var d = next === 1 ? 0 : Math.min(1, Math.max(0, base + r(-0.32, 0.32)));
+if (next > 1) { var tries = 0; while (Math.abs(d - lastDepth) < 0.22 && tries++ < 20) d = Math.min(1, Math.max(0, base + r(-0.38, 0.38))); }
+lastDepth = d;
+var size = 34 - 20 * d;
+var op = 0.95 - 0.75 * d;
 el.style.fontSize = size + "px";
 el.style.color = gray(op);
 el.style.transform = "translate(-9999px,-9999px)";
@@ -109,8 +115,10 @@ x: r(Math.min(20, maxX), maxX),
 y: -el.offsetHeight - 10,
 h: el.offsetHeight,
 w: el.offsetWidth,
-vy: FEED || (FEED = innerHeight / 20),
-gap: r(30, 70),
+/* near headlines fall a little faster than far ones; the gap behind each is small and never the same, from almost touching to a little over half an inch */
+vy: (FEED || (FEED = innerHeight / 20)) * (1.08 - 0.16 * d),
+gap: Math.random() < 0.12 ? r(80, 110) : 8 + 72 * Math.pow(Math.random(), 1.3),
+d: d,
 letters: bottomFirst(Array.prototype.slice.call(el.querySelectorAll(".c"))),
 gone: 0,
 count: 0
@@ -136,8 +144,9 @@ loose.push({
 el: el, op: it.op, size: it.size, ch: span.textContent,
 w: b.width, h: b.height,
 x: b.left, y: b.top,
-vy: r(-120, 0), g: r(500, 800), ramp: 0.05, age: 0, vx: r(-70, 70), ax: 0,
-rot: 0, vrot: r(-260, 260),
+/* the crash carries the headline's weight: a large, bright one strikes hard and scatters; a small, dim one settles softly */
+vy: -r(0, 30 + 170 * (1 - it.d)), g: r(500, 800), ramp: 0.05, age: 0, vx: r(-1, 1) * (25 + 120 * (1 - it.d)), ax: 0,
+rot: 0, vrot: r(-1, 1) * (70 + 330 * (1 - it.d)),
 fy: 0, vfy: Math.random() < 0.5 ? r(-60, 60) : 0
 });
 }
@@ -199,7 +208,7 @@ for (var o = 1; o < order.length; o++) {
 var ahead = order[o - 1], me = order[o];
 me.y += speed(me) * dt;
 if (ahead.gone < ahead.letters.length * 0.15) {
-var limit = ahead.y - me.h - 18;
+var limit = ahead.y - me.h - 6;
 if (me.y > limit) me.y = limit;
 }
 me.moved = true;

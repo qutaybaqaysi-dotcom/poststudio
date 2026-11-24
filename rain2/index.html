@@ -96,6 +96,7 @@ function frame(now) {
     var blur = Math.round(d.bl / s * 10) / 10;
     var lum = d.lv;
     if (d.z < 0.25) { var tf = 1 - d.z / 0.25; lum = lum * (1 - tf) + (0.4 + 0.1 * d.fr) * tf; }
+    lum = Math.min(lum, d.word.length <= 5 ? 0.6 : d.word.length <= 8 ? 0.5 : 0.4);
     var b = Math.round(255 * lum); d.lum = lum; d.s = s; d.blur = blur;
     d.el.style.color = "rgb(" + b + "," + b + "," + b + ")";
     if (blur !== d.lastBlur) { d.el.style.filter = blur > 0 ? "blur(" + blur + "px)" : "none"; d.lastBlur = blur; }

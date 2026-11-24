@@ -107,7 +107,7 @@ lastSize = size;
 /* weight follows size: larger headlines fall a little faster and strike harder */
 var d = (34 - size) / 19;
 /* the type scales with the screen, a desktop or a large display gets larger headlines than a phone, though not the same proportion, since they are different screens */
-var SC = Math.max(1, 0.75 * Math.min(2.6, Math.sqrt(innerWidth * innerHeight / (390 * 700))));
+var SC = Math.max(1, 0.6825 * Math.min(2.6, Math.sqrt(innerWidth * innerHeight / (390 * 700))));
 size = size * SC;
 el.style.fontSize = size + "px";
 el.style.maxWidth = Math.min(innerWidth * 0.64, 760 * SC) + "px";

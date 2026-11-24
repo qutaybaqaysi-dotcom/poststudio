@@ -46,7 +46,8 @@ function spawn() {
   var el = document.createElement("div");
   el.className = "w";
   for (var c = 0; c < word.length; c++) { var sp = document.createElement("span"); sp.textContent = word[c]; el.appendChild(sp); }
-  el.style.fontSize = BASE + "px";
+  var fs = (word === "fragments" || word === "experiment") ? 30 : BASE;
+  el.style.fontSize = fs + "px";
   document.body.appendChild(el);
   var z = Math.pow(Math.random(), 0.8);
   var d = {
@@ -108,7 +109,7 @@ function frame(now) {
         var off = (sp.offsetLeft + sp.offsetWidth / 2 - d.w / 2) * s, ra = d.rot * Math.PI / 180;
         var lx = sx + off * Math.cos(ra), ly = sy + off * Math.sin(ra);
         var le = document.createElement("div");
-        le.className = "w"; le.textContent = sp.textContent; le.style.fontSize = BASE + "px";
+        le.className = "w"; le.textContent = sp.textContent; le.style.fontSize = d.el.style.fontSize;
         le.style.color = d.el.style.color; le.style.filter = d.el.style.filter; le.style.zIndex = d.el.style.zIndex;
         document.body.appendChild(le);
         sp.style.visibility = "hidden";

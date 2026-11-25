@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title></title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+canvas { position: absolute; left: 0; top: 0; }
+body.idle { cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+/* every president falls in order, in the color of his party, and on landing dissolves into a stripe as thick as his time in office. The key beside them keeps rewriting itself: before 2000 no color stood for any party, so each new president deals the colors again. From 2000 the key freezes, red and blue. */
+var P = [
+["George Washington","1789-04-30","1797-03-04","none"],
+["John Adams","1797-03-04","1801-03-04","F"],
+["Thomas Jefferson","1801-03-04","1809-03-04","DR"],
+["James Madison","1809-03-04","1817-03-04","DR"],
+["James Monroe","1817-03-04","1825-03-04","DR"],
+["John Quincy Adams","1825-03-04","1829-03-04","DR"],
+["Andrew Jackson","1829-03-04","1837-03-04","D"],
+["Martin Van Buren","1837-03-04","1841-03-04","D"],
+["William Henry Harrison","1841-03-04","1841-04-04","W"],
+["John Tyler","1841-04-04","1845-03-04","W"],
+["James K. Polk","1845-03-04","1849-03-04","D"],
+["Zachary Taylor","1849-03-04","1850-07-09","W"],
+["Millard Fillmore","1850-07-09","1853-03-04","W"],
+["Franklin Pierce","1853-03-04","1857-03-04","D"],
+["James Buchanan","1857-03-04","1861-03-04","D"],
+["Abraham Lincoln","1861-03-04","1865-04-15","R"],
+["Andrew Johnson","1865-04-15","1869-03-04","NU"],
+["Ulysses S. Grant","1869-03-04","1877-03-04","R"],
+["Rutherford B. Hayes","1877-03-04","1881-03-04","R"],
+["James A. Garfield","1881-03-04","1881-09-19","R"],
+["Chester A. Arthur","1881-09-19","1885-03-04","R"],
+["Grover Cleveland","1885-03-04","1889-03-04","D"],
+["Benjamin Harrison","1889-03-04","1893-03-04","R"],
+["Grover Cleveland","1893-03-04","1897-03-04","D"],
+["William McKinley","1897-03-04","1901-09-14","R"],
+["Theodore Roosevelt","1901-09-14","1909-03-04","R"],
+["William Howard Taft","1909-03-04","1913-03-04","R"],
+["Woodrow Wilson","1913-03-04","1921-03-04","D"],
+["Warren G. Harding","1921-03-04","1923-08-02","R"],
+["Calvin Coolidge","1923-08-02","1929-03-04","R"],
+["Herbert Hoover","1929-03-04","1933-03-04","R"],
+["Franklin D. Roosevelt","1933-03-04","1945-04-12","D"],
+["Harry S. Truman","1945-04-12","1953-01-20","D"],
+["Dwight D. Eisenhower","1953-01-20","1961-01-20","R"],
+["John F. Kennedy","1961-01-20","1963-11-22","D"],
+["Lyndon B. Johnson","1963-11-22","1969-01-20","D"],
+["Richard Nixon","1969-01-20","1974-08-09","R"],
+["Gerald Ford","1974-08-09","1977-01-20","R"],
+["Jimmy Carter","1977-01-20","1981-01-20","D"],
+["Ronald Reagan","1981-01-20","1989-01-20","R"],
+["George H. W. Bush","1989-01-20","1993-01-20","R"],
+["Bill Clinton","1993-01-20","2001-01-20","D"],
+["George W. Bush","2001-01-20","2009-01-20","R"],
+["Barack Obama","2009-01-20","2017-01-20","D"],
+["Donald Trump","2017-01-20","2021-01-20","R"],
+["Joe Biden","2021-01-20","2025-01-20","D"],
+["Donald Trump","2025-01-20",null,"R"]
+];
+var NAME = { none: "No party", F: "Federalist", DR: "Democratic-Republican", D: "Democratic", W: "Whig", R: "Republican", NU: "National Union", NR: "National Republican" };
+/* the parties standing at each point, as the key shows them */
+function era(i) {
+  if (i === 0) return ["none"];
+  if (i <= 5) return ["F", "DR"];
+  if (i <= 6) return ["D", "NR"];
+  if (i <= 12) return ["D", "W"];
+  if (i <= 15) return ["D", "R"];
+  if (i === 16) return ["NU", "D", "R"];
+  return ["D", "R"];
+}
+var FREEZE = 42; /* the 2000 election */
+var PAL = ["#b23b3b", "#3b5eb2", "#b2913b", "#4e8a5a", "#7b5aa6", "#3b9a9a", "#a65a7b"];
+var c = document.getElementById("c"), ctx = c.getContext("2d");
+var W, H, dpr = window.devicePixelRatio || 1;
+function size() { W = innerWidth; H = innerHeight; c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px"; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+size(); addEventListener("resize", size);
+function day(s) { return s ? Date.parse(s + "T12:00:00Z") / 864e5 : Date.now() / 864e5; }
+var D0 = day(P[0][1]), SPAN = day(null) - D0;
+function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function keyFor(i) {
+  var ps = era(i), k = {};
+  if (i >= FREEZE) { k.D = "#3b5eb2"; k.R = "#b23b3b"; return { parties: ps, col: k }; }
+  if (i === 0) { k.none = "#6e6e6e"; return { parties: ps, col: k }; }
+  var pal = shuffle(PAL);
+  ps.forEach(function (p, n) { k[p] = pal[n]; });
+  return { parties: ps, col: k };
+}
+var stripes = [], cur = null, idx = 0, key = keyFor(0), wait = 1.2;
+function fontSize() { return Math.max(18, Math.min(34, W / 13)); }
+function spawn() {
+  if (idx >= P.length) return;
+  key = keyFor(idx);
+  var p = P[idx], fs = fontSize();
+  ctx.font = "700 " + fs + "px Helvetica, Arial, sans-serif";
+  var tw = ctx.measureText(p[0]).width;
+  cur = { i: idx, name: p[0], col: key.col[p[3]], fs: fs, tw: tw, x: 20 + Math.random() * Math.max(0, W - tw - 40), y: -fs, v: H / 5, phase: 0, t: 0,
+    th: Math.max(1, (day(p[2]) - day(p[1])) / SPAN * H * 0.8) };
+  idx++;
+}
+function filled() { var s = 0; for (var i = 0; i < stripes.length; i++) s += stripes[i].th; return s; }
+function legend() {
+  var x = 24, y = 30, segW = Math.min(110, (W - 48 - 52) / Math.max(1, key.parties.length));
+  ctx.font = "700 12px Helvetica, Arial, sans-serif"; ctx.fillStyle = "#8c8c8c"; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillText("Party", x, y + 5);
+  x += 52;
+  key.parties.forEach(function (p, n) {
+    ctx.fillStyle = key.col[p]; ctx.fillRect(x + n * segW, y, segW - 2, 10);
+    ctx.fillStyle = "#8c8c8c"; ctx.font = "400 11px Helvetica, Arial, sans-serif"; ctx.textBaseline = "top";
+    ctx.fillText(NAME[p], x + n * segW, y + 16);
+    ctx.textBaseline = "middle"; ctx.font = "700 12px Helvetica, Arial, sans-serif";
+  });
+}
+var last = performance.now();
+function frame(now) {
+  var dt = Math.min(0.05, (now - last) / 1000); last = now;
+  ctx.clearRect(0, 0, W, H);
+  var y0 = H;
+  for (var i = 0; i < stripes.length; i++) { var s = stripes[i]; y0 -= s.th; ctx.fillStyle = s.col; ctx.fillRect(0, y0, W, s.th); }
+  var top = H - filled();
+  if (!cur) { wait -= dt; if (wait <= 0 && idx < P.length) spawn(); }
+  if (cur) {
+    ctx.font = "700 " + cur.fs + "px Helvetica, Arial, sans-serif"; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    if (cur.phase === 0) {
+      cur.y += cur.v * dt;
+      if (cur.y >= top) { cur.y = top; cur.phase = 1; }
+      ctx.fillStyle = cur.col; ctx.fillText(cur.name, cur.x, cur.y);
+    } else {
+      /* the name spreads across the whole width and flattens into its stripe */
+      cur.t += dt / 1.6;
+      var e = Math.min(1, cur.t), k = e * e * (3 - 2 * e);
+      var sx = 1 + (W / cur.tw - 1) * k, sy = 1 + (cur.th / (cur.fs * 0.72) - 1) * k;
+      var cx = cur.x + cur.tw / 2 + (W / 2 - cur.x - cur.tw / 2) * k;
+      var by = top;
+      ctx.save();
+      ctx.globalAlpha = 1 - k * 0.6;
+      ctx.translate(cx, by); ctx.scale(sx, sy);
+      ctx.fillStyle = cur.col; ctx.fillText(cur.name, -cur.tw / 2, 0);
+      ctx.restore();
+      ctx.globalAlpha = k; ctx.fillStyle = cur.col; ctx.fillRect(0, top - cur.th, W, cur.th); ctx.globalAlpha = 1;
+      if (e >= 1) { stripes.push({ col: cur.col, th: cur.th }); cur = null; wait = 0.8; }
+    }
+  }
+  legend();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// hidden door: a click anywhere opens full screen
+(function(){
+  var de = document.documentElement;
+  var req = de.requestFullscreen || de.webkitRequestFullscreen;
+  if (!req) return;
+  document.addEventListener('click', function(){
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try { var p = req.call(de); if (p && p.catch) p.catch(function(){}); } catch(e){}
+  });
+  var t;
+  function wake(){ document.body.classList.remove('idle'); clearTimeout(t);
+    if (document.fullscreenElement || document.webkitFullscreenElement) t = setTimeout(function(){ document.body.classList.add('idle'); }, 2000); }
+  document.addEventListener('mousemove', wake);
+  document.addEventListener('fullscreenchange', wake);
+  document.addEventListener('webkitfullscreenchange', wake);
+})();
+</script>
+</body>
+</html>

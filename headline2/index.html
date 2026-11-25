@@ -27,6 +27,7 @@ var ctx = pile.getContext("2d");
 var dpr = window.devicePixelRatio || 1;
 var COL = 4;
 var heights = [];
+var landed = [];
 var vis = [];
 function setupPile() {
 pile.width = innerWidth * dpr;
@@ -36,6 +37,7 @@ pile.style.height = innerHeight + "px";
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 heights = new Array(Math.ceil(innerWidth / COL) + 1).fill(0);
 vis = new Array(heights.length).fill(0);
+landed = [];
 }
 setupPile();
 window.addEventListener("resize", setupPile);
@@ -224,6 +226,99 @@ var dist = Math.sqrt((tx - p.x) * (tx - p.x) + (ty - p.y) * (ty - p.y));
 p.landing = { fx: p.x, fy0: p.y, tx: tx, ty: ty, t: 0, dur: 0.35 + dist / 70, vrot: p.vrot * 0.4 };
 }
 
+/* every letter that comes to rest is kept, so the pile can be looked at once more when the piece is done */
+function keep(p) {
+var q = { ch: p.ch, size: p.size, op: p.op, x: p.x, y: p.y, w: p.w, h: p.h, rot: p.rot, fy: p.fy };
+landed.push(q); draw(q);
+}
+function redraw() {
+ctx.clearRect(0, 0, innerWidth, innerHeight);
+for (var i = 0; i < landed.length; i++) draw(landed[i]);
+}
+/* the last settling: when the final headline has fallen, any letter with nothing under it drops, one at a time, until it rests on the letters below. Nothing else moves. */
+var scratch = document.createElement("canvas"), sctx = scratch.getContext("2d");
+function mask(q) {
+var S = 2 * Math.ceil(Math.max(q.w, q.h) * 0.8) + 6, M = S / 2;
+scratch.width = S; scratch.height = S;
+sctx.setTransform(1, 0, 0, 1, 0, 0);
+sctx.clearRect(0, 0, S, S);
+sctx.translate(M, M);
+sctx.rotate(q.rot * Math.PI / 180);
+var sx = Math.cos(q.fy * Math.PI / 180); if (Math.abs(sx) < 0.08) sx = sx < 0 ? -0.08 : 0.08;
+sctx.scale(sx, 1);
+sctx.font = "700 " + q.size + "px Helvetica, Arial, sans-serif";
+sctx.textAlign = "center"; sctx.textBaseline = "middle"; sctx.fillStyle = "#fff";
+sctx.fillText(q.ch, 0, 0);
+var d = sctx.getImageData(0, 0, S, S).data, pts = [];
+for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) if (d[(y * S + x) * 4 + 3] > 90) pts.push(x - M, y - M);
+q.pts = pts;
+}
+var W0, H0, occ;
+function stamp(q, v) {
+var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2);
+for (var i = 0; i < q.pts.length; i += 2) {
+var x = cx + q.pts[i], y = cy + q.pts[i + 1];
+if (x >= 0 && x < W0 && y >= 0 && y < H0) occ[y * W0 + x] += v;
+}
+}
+/* resting: some part of the glyph touches the floor, or another letter lies on it or just beneath it */
+/* resting: the glyph touches another letter somewhere, or lies near the floor. A letter that touches nothing at all is floating. */
+var REACH = 3;
+function rests(q, dy) {
+var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2) + dy, seen = false;
+for (var i = 0; i < q.pts.length; i += 2) {
+var x = cx + q.pts[i], y = cy + q.pts[i + 1];
+if (x < 0 || x >= W0) continue;
+seen = true;
+if (y >= H0 - 12) return true;
+for (var k = -REACH; k <= REACH; k++) {
+var yy = y + k; if (yy < 0 || yy >= H0) continue;
+for (var j = -REACH; j <= REACH; j++) { var xx = x + j; if (xx >= 0 && xx < W0 && occ[yy * W0 + xx] > 0) return true; }
+}
+}
+return !seen;
+}
+var settling = false, settled = false;
+function finalSettle() {
+settling = true;
+W0 = Math.ceil(innerWidth); H0 = Math.ceil(innerHeight);
+occ = new Uint16Array(W0 * H0);
+for (var i = 0; i < landed.length; i++) { mask(landed[i]); stamp(landed[i], 1); }
+var dropped = 0;
+function nextOne() {
+var pick = null;
+for (var i = 0; i < landed.length; i++) {
+var q = landed[i];
+stamp(q, -1);
+var ok = rests(q, 0);
+stamp(q, 1);
+if (!ok && (!pick || q.y > pick.y)) pick = q;
+}
+if (!pick || dropped > 80) { settling = false; settled = true; return; }
+dropped++;
+stamp(pick, -1);
+var dist = 0;
+REACH = 1; while (dist < H0 && !rests(pick, dist)) dist++; REACH = 3;
+var y0 = pick.y, t = 0, g = r(500, 800), T = Math.sqrt(2 * dist / g);
+function fall(now) {
+t += 1 / 60;
+var e = Math.min(1, t / T);
+pick.y = y0 + dist * e * e;
+redraw();
+if (e < 1) requestAnimationFrame(fall);
+else { pick.y = y0 + dist; stamp(pick, 1); redraw(); setTimeout(nextOne, r(400, 1200)); }
+}
+requestAnimationFrame(fall);
+}
+setTimeout(nextOne, 1200);
+}
+var quiet = 0;
+setInterval(function () {
+if (settling || settled || !heads.length || !landed.length) return;
+if (items.length || loose.length) { quiet = 0; return; }
+if (++quiet >= 4) finalSettle();
+}, 1000);
+
 var last = performance.now();
 function frame(now) {
 var dt = Math.min(0.05, (now - last) / 1000);
@@ -276,7 +371,7 @@ p.y = L.fy0 + (L.ty - L.fy0) * ease;
 p.rot += L.vrot * (1 - e) * dt;
 p.fy += p.vfy * 0.3 * (1 - e) * dt;
 p.el.style.transform = "translate3d(" + p.x + "px," + p.y + "px,0) rotate(" + p.rot + "deg) rotateY(" + p.fy + "deg)";
-if (e >= 1) { draw(p); p.el.remove(); loose.splice(k, 1); }
+if (e >= 1) { keep(p); p.el.remove(); loose.splice(k, 1); }
 continue;
 }
 p.age += dt;
@@ -294,7 +389,7 @@ for (var c = c0; c <= c1; c++) if (heights[c] > top) top = heights[c];
 var surface = innerHeight - top;
 if (p.y + p.h >= surface) {
 if (p.y + p.h - surface <= p.h) { land(p); continue; }
-draw(p);
+keep(p);
 p.el.remove();
 loose.splice(k, 1);
 continue;

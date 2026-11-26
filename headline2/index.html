@@ -254,9 +254,9 @@ for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) if (d[(y * S + x) * 4 + 
 q.pts = pts;
 }
 var W0, H0, occ;
-/* the darkest letters barely show against the black, so they don't count as support: a letter resting only on them would look like it floats */
+/* the darker letters barely show against the black, so they don't count as support: a letter resting only on them would look like it floats */
 function stamp(q, v) {
-if (q.op < 0.2) return;
+if (q.op < 0.3 || /[^A-Za-z0-9]/.test(q.ch)) return; /* nor do punctuation marks: too small to hold a letter up */
 var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2);
 for (var i = 0; i < q.pts.length; i += 2) {
 var x = cx + q.pts[i], y = cy + q.pts[i + 1];

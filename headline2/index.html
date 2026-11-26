@@ -92,7 +92,7 @@ el.className = "h";
 /* size and brightness are set apart, so a large headline can be dark and a small one bright. The grays are dealt evenly from 90% down to about 12%, one per headline, so the whole scale appears; the first is the largest at 90%, and no headline matches its neighbor in gray or size */
 if (!tones) {
   tones = [];
-  for (var t = 0; t < heads.length; t++) tones.push(0.843 - (0.843 - 0.13) * t / Math.max(1, heads.length - 1));
+  for (var t = 0; t < heads.length; t++) tones.push(0.843 - (0.843 - 0.211) * t / Math.max(1, heads.length - 1));
   var first = tones.shift(); shuffle(tones); tones.unshift(first);
 }
 var op;
@@ -100,7 +100,7 @@ if (next === 1) op = tones.shift();
 else {
   var pick = 0;
   for (var q2 = 0; q2 < tones.length; q2++) { if (Math.abs(tones[q2] - lastOp) >= 0.15) { pick = q2; break; } }
-  op = tones.length ? tones.splice(pick, 1)[0] : r(0.13, 0.843);
+  op = tones.length ? tones.splice(pick, 1)[0] : r(0.211, 0.843);
 }
 lastOp = op;
 var size = next === 1 ? 34 : (rank < 3 ? r(26, 34) : r(15, 32));
@@ -256,7 +256,7 @@ q.pts = pts;
 var W0, H0, occ;
 /* the darker letters barely show against the black, so they don't count as support: a letter resting only on them would look like it floats */
 function stamp(q, v) {
-if (q.op < 0.3 || /[^A-Za-z0-9]/.test(q.ch)) return; /* nor do punctuation marks: too small to hold a letter up */
+if (q.op < 0.2 || /[^A-Za-z0-9]/.test(q.ch)) return; /* nor do punctuation marks: too small to hold a letter up */
 var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2);
 for (var i = 0; i < q.pts.length; i += 2) {
 var x = cx + q.pts[i], y = cy + q.pts[i + 1];

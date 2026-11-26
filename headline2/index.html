@@ -254,7 +254,9 @@ for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) if (d[(y * S + x) * 4 + 
 q.pts = pts;
 }
 var W0, H0, occ;
+/* the darkest letters barely show against the black, so they don't count as support: a letter resting only on them would look like it floats */
 function stamp(q, v) {
+if (q.op < 0.2) return;
 var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2);
 for (var i = 0; i < q.pts.length; i += 2) {
 var x = cx + q.pts[i], y = cy + q.pts[i + 1];
@@ -264,17 +266,19 @@ if (x >= 0 && x < W0 && y >= 0 && y < H0) occ[y * W0 + x] += v;
 /* resting: some part of the glyph touches the floor, or another letter lies on it or just beneath it */
 /* resting: the glyph touches another letter somewhere, or lies near the floor. A letter that touches nothing at all is floating. */
 var REACH = 3;
+/* support comes only from straight below: under the lowest point of the glyph in each column. Two loose letters side by side do not hold each other up. */
 function rests(q, dy) {
-var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2) + dy, seen = false;
+var cx = Math.round(q.x + q.w / 2), cy = Math.round(q.y + q.h / 2) + dy, low = {}, seen = false;
 for (var i = 0; i < q.pts.length; i += 2) {
 var x = cx + q.pts[i], y = cy + q.pts[i + 1];
 if (x < 0 || x >= W0) continue;
 seen = true;
 if (y >= H0 - 12) return true;
-for (var k = -REACH; k <= REACH; k++) {
-var yy = y + k; if (yy < 0 || yy >= H0) continue;
-for (var j = -REACH; j <= REACH; j++) { var xx = x + j; if (xx >= 0 && xx < W0 && occ[yy * W0 + xx] > 0) return true; }
+if (!(x in low) || y > low[x]) low[x] = y;
 }
+for (var k in low) {
+var X = +k, Y = low[k];
+for (var d = 1; d <= REACH + 1; d++) { var yy = Y + d; if (yy >= 0 && yy < H0 && occ[yy * W0 + X] > 0) return true; }
 }
 return !seen;
 }
@@ -294,7 +298,7 @@ var ok = rests(q, 0);
 stamp(q, 1);
 if (!ok && (!pick || q.y > pick.y)) pick = q;
 }
-if (!pick || dropped > 80) { settling = false; settled = true; return; }
+if (!pick || dropped > 300) { settling = false; settled = true; return; }
 dropped++;
 stamp(pick, -1);
 var dist = 0;
@@ -306,7 +310,7 @@ var e = Math.min(1, t / T);
 pick.y = y0 + dist * e * e;
 redraw();
 if (e < 1) requestAnimationFrame(fall);
-else { pick.y = y0 + dist; stamp(pick, 1); redraw(); setTimeout(nextOne, r(400, 1200)); }
+else { pick.y = y0 + dist; stamp(pick, 1); redraw(); setTimeout(nextOne, r(150, 600)); }
 }
 requestAnimationFrame(fall);
 }
